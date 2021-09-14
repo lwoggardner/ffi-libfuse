@@ -1,0 +1,12 @@
+# All . files unless explicitly included
+.**/*
+Gemfile.lock
+/coverage/
+/doc/
+/pkg/
+/spec/reports/
+/tmp/
+/mnt/
+!.rubocop.yml
+!.yardopts
+!.gitignore
