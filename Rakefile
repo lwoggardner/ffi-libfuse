@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'bundler/gem_tasks'
-
 require 'rake/clean'
 
 CLOBBER.include ['pkg/', 'doc/']
@@ -23,7 +21,7 @@ RuboCop::RakeTask.new
 task default: %i[rubocop test yard]
 
 RELEASE_BRANCH = 'main'
-desc 'Release ffi-libfuse'
+desc 'Manual release gem ffi-libfuse'
 task :release, [:options] => %i[clobber default] do |_t, args|
   args.with_defaults(options: '--pretend') # use [--no-verbose] to force
   branch = `git rev-parse --abbrev-ref HEAD`.strip
