@@ -5,6 +5,7 @@ AllCops:
   Exclude:
     - 'spec/**/*_spec.rb'
     - 'spec/**/*_test.rb'
+    - 'vendor/bundle/**/*'
 
 # We're a FUSE filesystem we're going to see the perl syntax sometimes
 Style/SpecialGlobalVars:
@@ -34,5 +35,6 @@ Metrics/CyclomaticComplexity:
 Metrics/PerceivedComplexity:
   Max: 12
 
+# We use @!method in empty classes to document ffi functions
 Lint/EmptyClass:
   AllowComments: true
