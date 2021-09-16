@@ -7,6 +7,7 @@ Gemfile.lock
 /spec/reports/
 /tmp/
 /mnt/
+/vendor/
 !.rubocop.yml
 !.yardopts
 !.gitignore
