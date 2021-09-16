@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'fuse_version'
+require 'io/wait'
 
 module FFI
   module Libfuse
@@ -72,11 +73,8 @@ module FFI
         @monitor ||= Thread.new do
           Thread.current.name = name
           loop do
-            timeout = block_given? ? yield : nil
-
-            ready, _ignore_writable, _errors = ::IO.select([@pr], [], [], timeout)
-
-            break if ready&.include?(@pr) && !self.next
+            @pr.wait_readable(block_given? ? yield : nil)
+            break unless self.next
           end
         end
       end

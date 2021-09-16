@@ -104,7 +104,7 @@ module FFI
         return nil if omit?
 
         t = now? ? (now || Time.now) : self
-        t.tv_sec * 10**9 + t.tv_nsec
+        (t.tv_sec * (10**9)) + t.tv_nsec
       end
 
       # Convert to Float
@@ -116,7 +116,7 @@ module FFI
         return nil if omit?
 
         t = now? ? (now || Time.now) : self
-        t.tv_sec.to_f + t.tv_nsec.to_f / (10**9)
+        t.tv_sec.to_f + (t.tv_nsec.to_f / (10**9))
       end
 
       # @!visibility private
