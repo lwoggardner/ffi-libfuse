@@ -7,19 +7,6 @@ require_relative 'stat/constants'
 module FFI
   # Ruby representation of stat.h struct
   class Stat
-    class << self
-      # @return [Stat] Newly allocated stat representing a regular file - see {Stat#file}
-      def file(**fields)
-        new.file(**fields)
-      end
-
-      # @return [Stat] Newly allocated stat representing a directory - see {Stat#dir}
-      def dir(**fields)
-        new.dir(**fields)
-      end
-      alias directory dir
-    end
-
     # We need to be a StructWrapper because of clash with #size
     include StructWrapper
 
@@ -56,16 +43,12 @@ module FFI
     # @!attribute [rw] ctime
     #   @return [Time] time of last status change
 
-    time_members = Native
-                   .members
-                   .select { |m| m.to_s.start_with?('st_') && m.to_s.end_with?('timespec') }
-                   .map { |m| m[3..-5].to_sym }
+    time_members = Native.members.select { |m| m.to_s =~ /^st_.*timespec$/ }.map { |m| m[3..-5].to_sym }
 
     ffi_attr_reader(*time_members, format: 'st_%sspec', &:time)
 
     ffi_attr_writer(*time_members, format: 'st_%sspec', simple: false) do |sec, nsec = 0|
-      t = self[__method__[0..-2].to_sym]
-      t.set_time(sec, nsec)
+      self[__method__[0..-2].to_sym].set_time(sec, nsec)
     end
 
     # Fill content for a regular file
@@ -92,5 +75,126 @@ module FFI
       fill(mode: mode, uid: uid, gid: gid, nlink: nlink, **args)
     end
     alias directory dir
+
+    # Fill attributes from file (using native LIBC calls)
+    # @param [Integer|:to_s] file descriptor or a file path
+    # @param [Boolean] follow links
+    # @return [self]
+    def from(file, follow: true)
+      return fstat(file) if file.is_a?(Integer)
+
+      return stat(file.to_s) if follow
+
+      lstat(file.to_s)
+    end
+
+    # Fill attributes from file, following links
+    # @param [:to_s] file a file path
+    # @raise [SystemCallError] on error
+    # @return [self]
+    def stat(file)
+      res = self.class.native_stat(file.to_s, self)
+      raise SystemCallError.new('', FFI::LastError.error) unless res.zero?
+
+      self
+    end
+
+    # Fill attributes from file path, without following links
+    # @param [:to_s] file
+    # @raise [SystemCallError] on error
+    # @return [self]
+    def lstat(file)
+      res = self.class.native_lstat(file.to_s, self)
+      raise SystemCallError.new('', FFI::LastError.error) unless res.zero?
+
+      self
+    end
+
+    # Fill attributes from file descriptor
+    # @param [Integer] fileno file descriptor
+    # @raise [SystemCallError] on error
+    # @return [self]
+    def fstat(fileno)
+      res = self.class.native_fstat(fileno, self)
+      raise SystemCallError.new('', FFI::LastError.error) unless res.zero?
+
+      self
+    end
+
+    # Apply permissions mask to mode
+    # @param [Integer] mask (see umask)
+    # @param [Hash] overrides see {fill}
+    # @return self
+    def mask(mask = 0o4000, **overrides)
+      fill(mode: mode & (~mask), **overrides)
+    end
+
+    def file?
+      mode & S_IFREG != 0
+    end
+
+    def directory?
+      mode & S_IFDIR != 0
+    end
+
+    def setuid?
+      mode & S_ISUID != 0
+    end
+
+    def setgid?
+      mode & S_ISGID != 0
+    end
+
+    def sticky?
+      mode & S_ISVTX != 0
+    end
+
+    extend FFI::Library
+    ffi_lib FFI::Library::LIBC
+
+    attach_function :native_stat, :stat, [:string, by_ref], :int
+    attach_function :native_lstat, :lstat, [:string, by_ref], :int
+    attach_function :native_fstat, :fstat, [:int, by_ref], :int
+
+    class << self
+      # @!method file(stat,**fields)
+      # @return [Stat]
+      # @raise [SystemCallError]
+      # @see Stat#file
+
+      # @!method dir(stat,**fields)
+      # @return [Stat]
+      # @raise [SystemCallError]
+      # @see Stat#dir
+      %i[file dir].each { |m| define_method(m) { |stat = new, **args| stat.send(m, **args) } }
+      alias directory dir
+
+      # @!method from(file, stat, follow: false)
+      # @return [Stat]
+      # @raise [SystemCallError]
+      # @see Stat#from
+
+      # @!method stat(file, stat)
+      # @return [Stat]
+      # @raise [SystemCallError]
+      # @see Stat#stat
+
+      # @!method lstat(file, stat)
+      # @return [Stat]
+      # @raise [SystemCallError]
+      # @see Stat#lstat
+
+      # @!method fstat(file, stat)
+      # @return [Stat]
+      # @raise [SystemCallError]
+      # @see Stat#fstat
+      %i[from stat lstat fstat].each { |m| define_method(m) { |file, stat = new, **args| stat.send(m, file, **args) } }
+
+      # @!visibility private
+
+      # @!method native_stat(path,stat_buf)
+      # @!method native_lstat(path,stat_buf)
+      # @!method native_fstat(fd,stat_buf)
+    end
   end
 end

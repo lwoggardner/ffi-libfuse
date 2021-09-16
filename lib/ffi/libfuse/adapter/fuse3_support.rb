@@ -12,7 +12,6 @@ module FFI
       #
       module Fuse3Support
         # The actual module methods that are prepended
-        # @!visibility private
         module Prepend
           include Adapter
 

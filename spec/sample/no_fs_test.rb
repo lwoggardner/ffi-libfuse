@@ -22,6 +22,7 @@ describe 'NoFS' do
     output = FFI::Libfuse::FUSE_MAJOR_VERSION >= 3 ? stdout : stderr
     expect(status).must_equal(0)
     expect(output).must_match(/NoFS: Version/)
+    expect(output).must_match(/Fuse3Compat=false/)
   end
 
   [
@@ -29,12 +30,12 @@ describe 'NoFS' do
     { name: 'single threaded debug', args: %w[-s -d], stderr: [/:single_thread=>true/,/NoFS.*readdir/,/NoFS: DEBUG enabled/] },
     { name: 'multi thread foreground', args: %w[-f], stderr: '' },
     { name: 'single thread daemonized', args: %w[-s], stderr: '' },
-    { name: 'multi thread daemonized', args: [], stderr: '' },
-    { name: 'native loop single threaded foreground', args: %w[-f -s -o native], stderr: '' },
-    { name: 'native loop single threaded debug', args: %w[-s -d -o native], stderr: [/:single_thread=>true/,/NoFS.*readdir/,/NoFS: DEBUG enabled/] },
-    { name: 'native loop multi thread foreground', args: %w[-f -o native], stderr: '' },
-    { name: 'native loop single thread daemonized', args: %w[-s -o native], stderr: '' },
-  ].each do |name:, args:, stderr:|
+    { name: 'multi thread daemonized', args: %w[-d], stderr: '' },
+    #{ name: 'native loop single threaded foreground', args: %w[-f -s -o native], stderr: '' },
+    #{ name: 'native loop single threaded debug', args: %w[-s -d -o native], stderr: [/:single_thread=>true/,/NoFS.*readdir/,/NoFS: DEBUG enabled/] },
+    #{ name: 'native loop multi thread foreground', args: %w[-f -o native], stderr: '' },
+    #{ name: 'native loop single thread daemonized', args: %w[-s -o native], stderr: '' },
+  ].kw_each do |name:, args:, stderr:|
     it name do
       act_stdout, act_stderr, status = run_sample(fs, *args) do |mnt|
         expect(Dir.exist?("#{mnt}/other")).must_equal(false,"#{mnt}/other won't exist")

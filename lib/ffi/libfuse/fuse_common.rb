@@ -49,7 +49,7 @@ module FFI
         end
       rescue Errno => e
         -e.errno
-      rescue StandardError => e
+      rescue StandardError, ScriptError => e
         warn e
         warn e.backtrace.join("\n")
         -1
@@ -216,7 +216,9 @@ module FFI
         # Monitor for signals (and cache cleaning if required)
 
         signals.monitor { remember ? fuse_clean_cache : nil }
-        ThreadPool.new(name: 'FuseThread', max_idle: max_idle_threads.to_i, max_active: max_threads) { process }.join
+        ThreadPool.new(name: 'FuseThread', max_idle: max_idle_threads.to_i, max_active: max_threads&.to_i) do
+          process
+        end.join
       end
 
       # @!visibility private

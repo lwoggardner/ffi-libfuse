@@ -53,15 +53,23 @@ module LibfuseHelper
         end
       end
       sleep 1
-      if block_given?
-        raise "#{filesystem} not mounted at #{mnt}" unless mounted?(mnt, filesystem)
 
-        yield mnt
+      begin
+        if block_given?
+          raise "#{filesystem} not mounted at #{mnt}" unless mounted?(mnt, filesystem)
+
+          yield mnt
+        end
+        unmount(mnt) if mounted?(mnt, filesystem)
+        o, e, s = t.value
+        [o, e, s.exitstatus]
+      rescue StandardError, Minitest::Assertion
+        unmount(mnt) if mounted?(mnt, filesystem)
+        o, e, _s = t.value
+        warn "Errors\n#{e}" unless e.empty?
+        warn "Output\n#{o}" unless o.empty?
+        raise
       end
-
-      unmount(mnt)
-      o, e, s = t.value
-      [o, e, s.exitstatus]
     end
   end
 

@@ -30,7 +30,7 @@ describe FFI::Libfuse::Ackbar do
     { sig: 10, name: 'USR1' },
     { sig: :sigint, name: 'INT' }
   ]
-  tests.each do |sig:, name:|
+  tests.kw_each do |sig:, name:|
     it "traps signal #{sig}(#{sig.class.name}) for name #{name}" do
       traps[sig] = ->(signame) { signame }
       ackbar = FFI::Libfuse::Ackbar.new(traps, signal: mock_signal)
@@ -132,11 +132,14 @@ describe FFI::Libfuse::Ackbar do
       unless pid
         count = 0
         stop = false
-        traps['USR1'] = -> { count += 1 }
-        traps['HUP'] = -> { stop = true }
-        FFI::Libfuse::Ackbar.trap(traps) do |ackbar|
+        traps['USR1'] = -> {  puts "USR1 #{count}"; count += 1 }
+        traps['HUP'] = -> { puts "HUP"; stop = true }
+        FFI::Libfuse::Ackbar.trap(traps, force: true) do |ackbar|
           ackbar.monitor
-          sleep(0.1) until stop
+          until stop
+            puts "Sleeping"
+            sleep(1.1)
+          end
         end
         Kernel.exit!(count)
       end

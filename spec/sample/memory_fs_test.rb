@@ -2,7 +2,7 @@
 
 require_relative '../fuse_helper'
 
-describe 'MemoryFS' do
+describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
 
   include LibfuseHelper
 
@@ -12,16 +12,16 @@ describe 'MemoryFS' do
     it "prints help with #{help_arg}" do
       stdout, stderr, status = run_sample(fs, help_arg)
       output = FFI::Libfuse::FUSE_MAJOR_VERSION >= 3 ? stdout : stderr
-      expect(status).must_equal(0)
       expect(output).must_match(/FUSE options/)
+      expect(status).must_equal(0)
     end
   end
 
   it 'prints version with -V' do
     stdout, stderr, status = run_sample(fs, '-V')
     output = FFI::Libfuse::FUSE_MAJOR_VERSION >= 3 ? stdout : stderr
+    expect(output).must_match(/MemoryFS/)
     expect(status).must_equal(0)
-    expect(output).must_match(/MemoryFS: Version/)
   end
 
   [
@@ -32,7 +32,8 @@ describe 'MemoryFS' do
     { name: 'native loop single threaded foreground', args: %w[-f -s -o native]},
     { name: 'native loop multi thread foreground', args: %w[-f -o native]},
     { name: 'native loop single thread daemonized', args: %w[-s -o native]},
-  ].each do |name:, args:|
+    { name: 'no_buf', args: %w[-o no_buf]},
+  ].kw_each do |name:, args:|
     it name do
       act_stdout, _act_stderr, status = run_sample(fs, *args) do |mnt|
         d = Pathname.new("#{mnt}/testdir")

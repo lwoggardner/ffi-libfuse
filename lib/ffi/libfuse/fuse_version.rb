@@ -10,7 +10,7 @@ module FFI
     extend FFI::Library
 
     # The fuse library to load from 'LIBFUSE' environment variable if set, otherwise prefer Fuse3 over Fuse2
-    LIBFUSE = ENV['LIBFUSE'] || %w[libfuse3.so.3 libfuse.so.2]
+    LIBFUSE = ENV.fetch('LIBFUSE', nil) || %w[libfuse3.so.3 libfuse.so.2]
     ffi_lib(LIBFUSE)
 
     # @!scope class
