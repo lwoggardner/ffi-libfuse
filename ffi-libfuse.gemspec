@@ -30,9 +30,8 @@ Gem::Specification.new do |spec|
   spec.files         = Dir['lib/**/*.rb', 'sample/*.rb', '*.md', 'LICENSE', '.yardopts']
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'ffi'
+  spec.add_dependency 'ffi', '~> 1'
 
-  spec.add_development_dependency 'pry'
   spec.add_development_dependency 'rubocop'
   spec.add_development_dependency 'sys-filesystem'
   spec.add_development_dependency 'yard'
