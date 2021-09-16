@@ -21,7 +21,7 @@ RuboCop::RakeTask.new
 task default: %i[rubocop test yard]
 
 RELEASE_BRANCH = 'main'
-desc 'Manual release gem ffi-libfuse'
+desc 'Tag and bump to trigger release to rubygems'
 task :release, [:options] => %i[clobber default] do |_t, args|
   args.with_defaults(options: '--pretend') # use [--no-verbose] to force
   branch = `git rev-parse --abbrev-ref HEAD`.strip

@@ -1,50 +1,47 @@
-
 jobs:
   include:
-    - stage: Deploy
-      script: skip
-      before_install: []
-      install: skip
-      if: tag =~ /^v\d\.\d\.\d$/
-      deploy:
-        - provider: 'rubygems'
-          on:
-            repo: lwoggardner/ffi-libfuse
-            tags: true
-          api_key:
-            secure:
-    - stage: 'PreRelease'
-      if: branch =~ ^rc
-      script: skip
-      before_install: []
-      install: skip
-      deploy:
-        - provider: 'rubygems'
-          on:
-            repo: lwoggardner/ffi-libfuse
-            all_branches: true
-            condition: '$TRAVIS_BRANCH =~ ^rc'
-          api_key:
-            secure:
+  - stage: Deploy
+    script: skip
+    before_install: []
+    install: skip
+    if: tag =~ /^v\d\.\d\.\d$/
+    deploy:
+    - provider: rubygems
+      on:
+        repo: lwoggardner/ffi-libfuse
+        tags: true
+      api_key:
+        secure: fDvajssjMLRk5SGTN/wCTfrp1W28hpI9LHeFEZEn9plpZwXAl4Da86doK6Qn/4Y6Hn2JWraTDYrUTTGiKqjYQfNScGsj1S5usx1dIrH5juvyubb8E3KN9kzQW8T8BRaQMQdiJsROJLfvB4t9gAjk3wuc+nUmVGbvC8wfqptv/hWFXHMjjE9AeiVNBshZw39/KelOPO4KHaSFBBezBOtLcGxskmCAwfn542ScnLGU7zmqYzjE2G5rWNZlZLwkIYhIbn2NAOaoOjW5Msrsv3Igkz28tzH+Wwj0UeLBDAU3Y8vjohZUzKBWeveRkqMtU7xW/6VGf9K4D7thwSHj1SgnWhhciilzjKX8q26x1ni071Ng/JY5PO7VzqL8BXX3/+LmqI3GbdZlWTJuPLAwunl9UAj8Udn25XigHP99hGCcFaIw+nlJftUd/yoWIwi6AUw4Su/bg9RjBlWrbn/QCSxMyQ9HVrvk5JR1a2rBgS4aiVPtWvPq+d8VWEdt2y3AVPxoukiPTrLMZw/rpZwKUAId7BZ7ucUfd2ojXWDamS67C1VMwCm37IHX+T62vmEZcmez01gF8OIikSsklV4ANwGpmCKTKuraDEhTkGAnS6necTxWJdTXhDvJBpLykVCBDueF5tvJ7nGRi5iwnCm/3VdL24dK4H2PFF/BbRYfzXFSnYk=
+  - stage: PreRelease
+    if: branch =~ ^rc
+    script: skip
+    before_install: []
+    install: skip
+    deploy:
+    - provider: rubygems
+      on:
+        repo: lwoggardner/ffi-libfuse
+        all_branches: true
+        condition: "$TRAVIS_BRANCH =~ ^rc"
+      api_key:
+        secure: fDvajssjMLRk5SGTN/wCTfrp1W28hpI9LHeFEZEn9plpZwXAl4Da86doK6Qn/4Y6Hn2JWraTDYrUTTGiKqjYQfNScGsj1S5usx1dIrH5juvyubb8E3KN9kzQW8T8BRaQMQdiJsROJLfvB4t9gAjk3wuc+nUmVGbvC8wfqptv/hWFXHMjjE9AeiVNBshZw39/KelOPO4KHaSFBBezBOtLcGxskmCAwfn542ScnLGU7zmqYzjE2G5rWNZlZLwkIYhIbn2NAOaoOjW5Msrsv3Igkz28tzH+Wwj0UeLBDAU3Y8vjohZUzKBWeveRkqMtU7xW/6VGf9K4D7thwSHj1SgnWhhciilzjKX8q26x1ni071Ng/JY5PO7VzqL8BXX3/+LmqI3GbdZlWTJuPLAwunl9UAj8Udn25XigHP99hGCcFaIw+nlJftUd/yoWIwi6AUw4Su/bg9RjBlWrbn/QCSxMyQ9HVrvk5JR1a2rBgS4aiVPtWvPq+d8VWEdt2y3AVPxoukiPTrLMZw/rpZwKUAId7BZ7ucUfd2ojXWDamS67C1VMwCm37IHX+T62vmEZcmez01gF8OIikSsklV4ANwGpmCKTKuraDEhTkGAnS6necTxWJdTXhDvJBpLykVCBDueF5tvJ7nGRi5iwnCm/3VdL24dK4H2PFF/BbRYfzXFSnYk=
 language: ruby
 dist: focal
 rvm:
-  - "2.6"
-  - "2.7"
+- '2.6'
+- '2.7'
 end:
-  - FUSE_PKG=fuse LIBFUSE=libfuse.so.2
-  - FUSE_PKG=fuse3 LIBFUSE=libfuse3.so.3
+- FUSE_PKG=fuse LIBFUSE=libfuse.so.2
+- FUSE_PKG=fuse3 LIBFUSE=libfuse3.so.3
 before_install:
-  - sudo apt-get update -y
-  - sudo apt-get install -qq pkg-config ${FUSE_PKG}
-  - sudo modprobe fuse
-  - sudo chmod 666 /dev/fuse
-  - sudo chown root:$USER /etc/fuse.conf
-  - yes | gem update --system -N --force
-  - gem install bundler
-
+- sudo apt-get update -y
+- sudo apt-get install -qq pkg-config ${FUSE_PKG}
+- sudo modprobe fuse
+- sudo chmod 666 /dev/fuse
+- sudo chown root:$USER /etc/fuse.conf
+- yes | gem update --system -N --force
+- gem install bundler
 script:
-  - bundle exec rake
-
+- bundle exec rake
 cache:
   bundler: true
