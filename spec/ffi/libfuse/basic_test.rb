@@ -153,7 +153,7 @@ describe 'MockFS' do
       mock_fs.expect_file('/testDir/testFile', size: 12)
       mock_fs.expect(:read, 12) { |_path, buf, _size, _offset, _ffi| buf.write_bytes("hello\000world\000") }
 
-      with_fuse(mock_fs) do |mountpoint|
+      with_fuse(mock_fs,'-d') do |mountpoint|
         File.open("#{mountpoint}/testDir/testFile") do |f|
           val = f.gets
           expect(val).must_equal("hello\000world\000")
