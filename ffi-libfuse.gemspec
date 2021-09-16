@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.version       = FFI::Libfuse::VERSION
   # Only use the release version for actual deployment
   if ENV['TRAVIS_BUILD_STAGE_NAME']&.downcase == 'prerelease'
-    spec.version = "#{spec.version}.#{ENV['TRAVIS_BRANCH']}@#{ENV['TRAVIS_BUILD_NUMBER']}"
+    spec.version = "#{spec.version}.#{ENV['TRAVIS_BRANCH']}#{ENV['TRAVIS_BUILD_NUMBER']}"
   elsif ENV['FFI_LIBFUSE_RELEASE'] || ENV['TRAVIS_BUILD_STAGE_NAME']&.downcase == 'deploy'
     # leave as is
   else
