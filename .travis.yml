@@ -32,11 +32,11 @@ rvm:
   - "2.6"
   - "2.7"
 end:
-  - LIBFUSE=fuse
-  - LIBFUSE=fuse3
+  - FUSE_PKG=fuse LIBFUSE=libfuse.so.2
+  - FUSE_PKG=fuse3 LIBFUSE=libfuse3.so.3
 before_install:
   - sudo apt-get update -y
-  - sudo apt-get install -qq pkg-config ${LIBFUSE}
+  - sudo apt-get install -qq pkg-config ${FUSE_PKG}
   - sudo modprobe fuse
   - sudo chmod 666 /dev/fuse
   - sudo chown root:$USER /etc/fuse.conf
