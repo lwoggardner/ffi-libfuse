@@ -27,7 +27,7 @@ jobs:
           api_key:
             secure:
 language: ruby
-dist: xenial
+dist: focal
 rvm:
   - "2.6"
   - "2.7"
