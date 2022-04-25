@@ -5,20 +5,51 @@ require 'rake/clean'
 CLOBBER.include ['pkg/', 'doc/']
 
 require 'rake/testtask'
-Rake::TestTask.new do |t|
-  t.test_files = FileList['spec/**/*_test.rb']
+
+desc 'Unit Tests'
+Rake::TestTask.new(:unit_test) do |t|
+  t.test_files = FileList['spec/ffi/**/*_test.rb']
   t.warning = false
 end
+
+desc 'Sample Filesystem Tests'
+Rake::TestTask.new(:sample_test) do |t|
+  t.test_files = FileList['spec/sample/*_test.rb']
+end
+
+desc 'Run all tests'
+task test: %i[unit_test sample_test]
 
 require 'yard'
 YARD::Rake::YardocTask.new do |t|
   t.options << '--fail-on-warning'
 end
+task yard: ['README.md']
 
 require 'rubocop/rake_task'
 RuboCop::RakeTask.new
 
-task default: %i[rubocop test yard]
+file('README.md' => ['sample/hello_fs.rb']) do |t|
+  readme = File.read(t.name)
+  t.prerequisites.each do |sample_file|
+    sample_content = File.read(sample_file)
+    sample_content = "\n*#{sample_file}*\n\n```ruby\n#{sample_content}\n```\n"
+    unless readme.gsub!(/(<!-- SAMPLE BEGIN: #{sample_file} -->)(.*)(<!-- SAMPLE END: #{sample_file} -->)/im,
+                        "\\1#{sample_content}\\3")
+      raise "Did not find SAMPLE #{sample_file} in #{t.name}"
+    end
+  end
+  File.write(t.name, readme)
+end
+
+task :samples do |_t|
+  FileList['sample/*.rb'].each { |f| touch f }
+end
+
+desc 'Regenerate documentation'
+task doc: %i[samples yard]
+
+task default: %i[rubocop test doc]
 
 RELEASE_BRANCH = 'main'
 desc 'Tag and bump to trigger release to rubygems'

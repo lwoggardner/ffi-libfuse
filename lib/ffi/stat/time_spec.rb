@@ -14,14 +14,27 @@ module FFI
       # Special nsec value representing a request to omit setting this time - see utimensat(2)
       UTIME_OMIT = (1 << 30) - 2
 
-      # A fixed TimeSpec representing the current time
-      def self.now
-        @now ||= new.set_time(0, UTIME_NOW)
-      end
+      class << self
+        # A fixed TimeSpec representing the current time
+        def now
+          @now ||= new.set_time(0, UTIME_NOW)
+        end
 
-      # A fixed TimeSpec representing a request to omit setting this time
-      def self.omit
-        @omit ||= new.set_time(0, UTIME_OMIT)
+        # A fixed TimeSpec representing a request to omit setting this time
+        def omit
+          @omit ||= new.set_time(0, UTIME_OMIT)
+        end
+
+        # @param [Array<TimeSpec>] times
+        # @param [Integer] size
+        # @return [Array<TimeSpec>] list of times filled out to size with TimeSpec.now if times was empty,
+        #   otherwise with TimeSpec.omit
+        def fill_times(times, size = times.size)
+          return times unless times.size < size
+          return Array.new(size, now) if times.empty?
+
+          times.dup.fill(omit, times.size..size - times.size) if times.size < size
+        end
       end
 
       layout(

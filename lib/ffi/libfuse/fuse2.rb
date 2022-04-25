@@ -62,28 +62,22 @@ module FFI
           foreground = foreground_ptr.get(:int, 0) == 1
 
           result = { mountpoint: mountpoint, single_thread: !multi_thread, foreground: foreground }
-          args.parse!(Main::STANDARD_OPTIONS, [result, handler]) { |*proc_args| fuse_opt_proc(*proc_args) }
+          args.parse!(Main::STANDARD_OPTIONS, [result, handler]) { |**op_args| fuse_opt_proc(**op_args) }
           result
         end
 
         # Handle standard custom args
-        def fuse_opt_proc(custom, _arg, key, _outargs)
-          return :keep if %i[unmatched non_option].include?(key)
-
-          run_args, handler = custom
+        def fuse_opt_proc(data:, key:, **)
+          run_args, handler = data
           case key
           when :show_help
             warn Main::HELP
-            if handler.respond_to?(:fuse_help) && (help = handler.fuse_help)
-              warn help
-            end
+            warn handler.fuse_help if handler.respond_to?(:fuse_help)
           when :debug
             handler.fuse_debug(true) if handler.respond_to?(:fuse_debug)
           when :show_version
             warn Main.version
-            if handler.respond_to?(:fuse_version) && (version = handler.fuse_version)
-              warn version
-            end
+            warn handler.fuse_version if handler.respond_to?(:fuse_version)
           else
             return :keep
           end

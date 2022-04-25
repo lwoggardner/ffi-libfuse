@@ -200,7 +200,7 @@ describe 'MockFS' do
       mock_fs.expect_file('/testDir/statfs', size: 12)
 
       mock_fs.expect(:statfs, 0) do |_path, statfs|
-        statfs.fill(statvfs)
+        statfs.fill(**statvfs)
         0
       end
 

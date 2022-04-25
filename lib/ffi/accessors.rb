@@ -20,8 +20,8 @@ module FFI
       #
       # Define a struct attribute reader for members
       # @param [Array<Symbol>] attrs the attribute names
-      # @param [String] format
-      #   A format string containing a single %s to convert attr symbol to struct member
+      # @param [Proc|String] format
+      #   A Proc, or format string containing a single %s, to convert attr to struct member name
       # @param [Boolean] simple
       #   Controls how writer methods are defined using block
       # @param [Proc] block
@@ -33,7 +33,7 @@ module FFI
       # @return [void]
       def ffi_attr_reader(*attrs, format: '%s', simple: true, &block)
         attrs.each do |attr|
-          member = (format % attr).to_sym
+          member = (format.respond_to?(:call) ? format.call(attr) : format % attr).to_sym
           ffi_attr_readers[attr] = member
           if !block
             define_method(attr) { self[member] }
@@ -47,7 +47,7 @@ module FFI
 
       # Define a struct attribute writer
       # @param [Array<Symbol>] attrs the attribute names
-      # @param [String] format
+      # @param [String|Proc] format
       #   A format string containing a single %s to convert attr symbol to struct member
       # @param [Boolean] simple
       #   Controls how writer methods are defined using block
@@ -55,8 +55,8 @@ module FFI
       #   An optional block to set the input value into the struct field.
       #
       #   If simple is true then the struct field is set to the result of calling block with the input value,
-      #   otherwise the method is defined directly from the block. Use __method__[0..-2] to get the attribute name
-      #   and self.class.ffi_attr_writers[__method__[0..-2]] to get the struct field name
+      #   otherwise the method is defined directly from the block. Use __method__[0..-1] to get the attribute name
+      #   and self.class.ffi_attr_writers[__method__[0..-1]] to get the struct member name
       # @return [void]
       def ffi_attr_writer(*attrs, format: '%s', simple: true, &block)
         attrs.each do |attr|

@@ -14,7 +14,6 @@ module FFI
     # Generic data buffer for I/O, extended attributes, etc...Data may be supplied as a memory pointer or as a file
     #  descriptor
     #
-    # @todo define helper methods to create buffers pointing to file_descriptors or allocated memory
     class FuseBuf < FFI::Struct
       layout(
         size: :size_t, #  Size of data in bytes
@@ -26,19 +25,60 @@ module FFI
 
       # rubocop:disable  Naming/MethodParameterName
 
-      # @param [Integer] size Size of data in bytes
-      # @param [Integer] fd File descriptor
-      # @param [FFI::Pointer] mem Memory pointer
-      # @param [Boolean] fd_retry
-      #  Retry operation on file descriptor
+      # @!attribute [r] mem
+      #   @return [FFI::Pointer] the memory in the buffer
+      def mem
+        self[:mem]
+      end
+      alias memory mem
+
+      # @!attribute [r] fd
+      #   @return [Integer] the file descriptor number
+      def fd
+        self[:fd]
+      end
+      alias file_descriptor fd
+
+      #  @return [Boolean] true if this a memory buffer
+      def mem?
+        !fd?
+      end
+
+      # @return [Boolean] true if this is a file descriptor buffer
+      def fd?
+        self[:flags].include?(:is_fd)
+      end
+      alias file_descriptor? fd?
+
+      # Resize mem to smaller than initially allocated
+      # @param [Integer] new_size
+      # @return [void]
+      def resize(new_size)
+        self[:size] = new_size
+      end
+
+      # @overload fill(size:, mem:, auto_release)
+      #   Fill as a Memory buffer
+      #   @param [Integer] size Size of data in bytes
+      #   @param [FFI::Pointer] mem Memory pointer allocated to size if required
+      #   @param [Boolean] autorelease
       #
-      #  If this flag is set then retry operation on file descriptor until .size bytes have been copied or an error or
-      #  EOF is detected.
+      # @overload fill(fd:, fd_retry:, pos:)
+      #   Fill as a FileDescriptor buffer
+      #   @param [Integer] fd File descriptor
+      #   @param [Boolean] fd_retry
+      #     Retry operations on file descriptor
       #
-      # @param [Integer] pos
-      #  If > 0 then used to seek to the given offset before performing operation on file descriptor.
+      #     If this flag is set then retry operation on file descriptor until .size bytes have been copied or an error
+      #     or EOF is detected.
+      #
+      #   @param [Integer] pos
+      #      If > 0 then used to seek to the given offset before performing operation on file descriptor.
       # @return [self]
-      def fill(size:, mem: FFI::Pointer::NULL, fd: -1, fd_retry: false, pos: 0)
+      def fill(mem: FFI::Pointer::NULL, size: mem.null? ? 0 : mem.size, fd: -1, fd_retry: false, pos: 0)
+        mem = FFI::MemoryPointer.new(:char, size, true) if fd == -1 && mem.null? && size.positive?
+        mem.autorelease = to_ptr.autorelease? unless mem.null?
+
         self[:size] = size
         self[:mem] = mem
         self[:fd] = fd
@@ -60,47 +100,86 @@ module FFI
     #
     # Allocate dynamically to add more than one buffer.
     #
-    # @todo find a use for {FuseOperations#read_buf} and implement necessary helpers
     class FuseBufVec < FFI::Struct
       layout(
         count: :size_t,
         idx: :size_t,
         off: :size_t,
-        buf: :pointer
+        # but is treated as a variable length array of FuseBuf at size +1 following the struct.
+        buf: [FuseBuf, 1] # struct fuse_buf[1]
       )
+
       # @!attribute [r] count
-      #   @todo implement
       #   @return [Integer] the number of buffers in the array
-
-      # @!attribute [r] index
-      #   @todo implement
-      #   @return [Integer] index of current buffer within the array
-
-      # @!attribute [r] offset
-      #   @todo implement
-      #   @return [Integer] current offset within the current buffer
-
-      # @!attribute [r] buffers
-      #   @todo implement
-      #   @return [Array<FuseBuf>] array of buffers
-
-      # @see #init
-      def self.init(**buf_options)
-        new.init(**buf_options)
+      def count
+        self[:count]
       end
 
-      # Allocate a vector containing a single buffer
+      # @!attribute [r] index
+      #   @return [Integer] index of current buffer within the array
+      def index
+        self[:idx]
+      end
+      alias idx index
+
+      # @!attribute [r] offset
+      #   @return [Integer] current offset within the current buffer
+      def offset
+        self[:off]
+      end
+      alias off offset
+
+      # @!attribute [r] buffers
+      #   @return [Array<FuseBuf>] array of buffers
+      def buffers
+        @buffers ||= Array.new(count) do |i|
+          next self[:buf].first if i.zero?
+
+          FuseBuf.new(self[:buf].to_ptr + (i * FuseBuf.size))
+        end
+      end
+
+      # @!attribute [r] current
+      #  @return [FuseBuf] the current buffer
+      def current
+        return self[:buf].first if index.zero?
+
+        FuseBuf.new(self[:buf].to_ptr + (index * FuseBuf.size))
+      end
+
+      # Create and initialise a new FuseBufVec
+      # @param [Boolean] autorelease should the struct be freed on GC (default NO!!!)
+      # @param [Hash] buf_options options for configuring the initial buffer. See {#init}
+      # @yield(buf,index)
+      # @yieldparam [FuseBuf] buf
+      # @yieldparam [Integer] index
+      # @yieldreturn [void]
+      # @return [FuseBufVec]
+      def self.init(autorelease: true, count: 1, **buf_options)
+        bufvec_ptr = FFI::MemoryPointer.new(:uchar, FuseBufVec.size + (FuseBuf.size * (count - 1)), true)
+        bufvec_ptr.autorelease = autorelease
+        bufvec = new(bufvec_ptr)
+        bufvec[:count] = count
+        bufvec.init(**buf_options)
+
+        buffers.each_with_index { |b, i| yield i, b } if block_given?
+        bufvec
+      end
+
+      # Set and initialise a specific buffer
       #
       # See fuse_common.h FUSE_BUFVEC_INIT macro
-      # @param [Hash<Symbol,Object>] buf_options see {FuseBuf.fill}
-      def init(**buf_options)
-        self[:count] = 1
-        self[:idx] = 0
+      # @param [Integer] index the index of the buffer
+      #   @param [Hash<Symbol,Object>] buf_options see {FuseBuf#fill}
+      #   @return [FuseBuf] the initial buffer
+      def init(index: 0, **buf_options)
+        self[:idx] = index
         self[:off] = 0
-        self[:buf] = FuseBuf.new.fill(**buf_options), to_ptr
+        current.fill(**buf_options) unless buf_options.empty?
         self
       end
 
+      # Would pref this to be called #size but clashes with FFI::Struct, might need StructWrapper
       # @return [Integer] total size of data in a fuse buffer vector
       def buf_size
         Libfuse.fuse_buf_size(self)
@@ -140,6 +219,29 @@ module FFI
       #
       def copy_to(dst, *flags)
         Libfuse.fuse_buf_copy(dst, self, flags)
+      end
+
+      # Copy our data direct to file descriptor
+      # @param [Integer] fileno a file descriptor
+      # @param [Integer] offset
+      # @param [Array<Symbol>] flags - see {copy_to}
+      # @return [Integer] number of bytes copied
+      def copy_to_fd(fileno, offset = 0, *flags)
+        dst = self.class.init(size: buf_size, fd: fileno, pos: offset)
+        copy_to(dst, *flags)
+      end
+
+      # Copy to string via a temporary buffer
+      # @param [Array<Symbol>] flags - see {copy_to}
+      # @return [String] the extracted data
+      def copy_to_str(*flags)
+        dst = FuseBufVec.init(size: buf_size)
+        copied = copy_to(dst, *flags)
+        dst.current.memory.read_string(copied)
+      end
+
+      def copy_from(src, *flags)
+        Libfuse.fuse_buf_copy(self, src, flags)
       end
     end
 
