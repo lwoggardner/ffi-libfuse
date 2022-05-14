@@ -103,7 +103,9 @@ module FFI
         #   * :copy_file_range can raise ENOTSUP to trigger glibc to fallback to inefficient copy
         def fuse_respond_to?(method)
           case method
-          when :getdir
+          when :getdir, :fgetattr
+            # TODO: Find out if fgetattr works on linux, something wrong with stat values on OSX.
+            #     https://github.com/osxfuse/osxfuse/issues/887
             false
           when :read_buf, :write_buf
             !no_buf

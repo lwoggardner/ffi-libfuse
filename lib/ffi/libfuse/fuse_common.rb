@@ -15,7 +15,7 @@ module FFI
     attach_function :fuse_remove_signal_handlers, [:session], :void
     attach_function :fuse_loop, [:fuse], :int, blocking: false
     attach_function :fuse_clean_cache, [:fuse], :int
-    attach_function :fuse_exit, [:fuse], :void
+    attach_function :fuse_exit, [:fuse], :void, blocking: false
     attach_function :fuse_destroy, [:fuse], :void
     attach_function :fuse_daemonize, [:int], :int
 
@@ -45,13 +45,13 @@ module FFI
         if native
           run_native(**options)
         else
-          run_ruby(**options)
+          res = run_ruby(**options)
+          res
         end
       rescue Errno => e
         -e.errno
       rescue StandardError, ScriptError => e
-        warn e
-        warn e.backtrace.join("\n")
+        warn "#{e}\n#{e.backtrace.join("\n")}"
         -1
       ensure
         teardown
@@ -125,18 +125,11 @@ module FFI
         (se = session) && Libfuse.fuse_remove_signal_handlers(se)
       end
 
-      # Tell the processing loop to stop and force unmount the filesystem which is unfortunately required to make
-      # the processing threads, which are mostly blocked on io reads from /dev/fuse fd, to exit.
-      def exit
-        Libfuse.fuse_exit(@fuse) if @fuse
-        # Force threads blocked reading on #io to finish
-        unmount
-      end
-
       # Ruby implementation of fuse default traps
       # @see Ackbar
       def default_traps
-        @default_traps ||= { INT: -> { exit }, HUP: -> { exit }, TERM: -> { exit }, PIPE: 'IGNORE' }
+        exproc = ->(signame) { exit(signame) }
+        @default_traps ||= { INT: exproc, HUP: exproc, TERM: exproc, TSTP: exproc, PIPE: 'IGNORE' }
       end
 
       # @api private
@@ -186,22 +179,16 @@ module FFI
       # @api private
       # Ruby implementation of single threaded fuse loop
       def fuse_loop(signals:, remember: false, **_options)
+        selectable = [io, signals.pr]
         loop do
-          break unless mounted?
+          timeout = fuse_cache_timeout(remember)
+          ready, errors = fuse_io_select(selectable, timeout)
+          break if fuse_exited?
 
-          timeout = remember ? fuse_clean_cache : nil
+          raise 'fuse_loop io error' if errors.any?
 
-          ready, _ignore_writable, errors = ::IO.select([io, signals.pr], [], [io], timeout)
-
-          next unless ready || errors
-
-          raise 'FUSE error' unless errors.empty?
-
-          break if ready.include?(io) && !process
-
-          break if ready.include?(signals.pr) && !signals.next
-        rescue Errno::EBADF
-          raise if mounted? # This will occur on exit
+          selectable.delete(signals.pr) if ready.include?(signals.pr) && !signals.next
+          fuse_process if ready.include?(io)
         end
       end
 
@@ -215,9 +202,11 @@ module FFI
       def fuse_loop_mt(signals:, max_idle_threads: 10, max_threads: nil, remember: false, **_options)
         # Monitor for signals (and cache cleaning if required)
 
-        signals.monitor { remember ? fuse_clean_cache : nil }
+        signals.monitor { fuse_cache_timeout(remember) }
         ThreadPool.new(name: 'FuseThread', max_idle: max_idle_threads.to_i, max_active: max_threads&.to_i) do
-          process
+          raise StopIteration if fuse_exited?
+
+          fuse_process
         end.join
       end
 
@@ -225,13 +214,41 @@ module FFI
       def teardown
         return unless @fuse
 
-        unmount
-        Libfuse.fuse_destroy(@fuse)
-        ObjectSpace.undefine_finalizer(self)
+        self.exit&.join
+
+        Libfuse.fuse_destroy(@fuse) if @fuse
         @fuse = nil
+      ensure
+        ObjectSpace.undefine_finalizer(self)
       end
 
-      # @!visibility private
+      # Starts a thread to unmount the filesystem and stop the processing loop.
+      # generally expected to be called from a signal handler inside the fuse loop.
+      #
+      # @return [Thread] the unmount thread
+      def exit(_signame = nil)
+        return unless @fuse
+
+        # Unmount/exit in a separate thread IF called from within the fuse loop itself.
+        @exit ||= Thread.new do
+          unmount
+          # without this sleep before exit, MacOS does not complete unmounting
+          sleep 0.2
+          Libfuse.fuse_exit(@fuse)
+          true
+        end
+      end
+
+      private
+
+      def fuse_cache_timeout(remember)
+        remember ? fuse_clean_cache : nil
+      end
+
+      def fuse_io_select(io_array, timeout)
+        (::IO.select(io_array, [], io_array, timeout) || Array.new(3)).map { |a| a || [] }
+      end
+
       def session
         return nil unless @fuse
 

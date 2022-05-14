@@ -196,6 +196,10 @@ describe 'MockFS' do
     end
 
     it 'should report filesystem statistics' do
+      # TODO: on MacOS statfs always applies to the root path
+      #       and there is the statfs_x function that uses 64 bit inode structure
+      skip 'MacOS todo statvfs' if macos?
+
       mock_fs.paths = { '/testDir' => stat_as_dir }
       mock_fs.expect_file('/testDir/statfs', size: 12)
 

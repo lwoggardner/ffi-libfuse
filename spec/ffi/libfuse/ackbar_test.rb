@@ -27,7 +27,6 @@ describe FFI::Libfuse::Ackbar do
     { sig: 'HUP', name: 'HUP' },
     { sig: :INT, name: 'INT' },
     { sig: 2, name: 'INT' },
-    { sig: 10, name: 'USR1' },
     { sig: :sigint, name: 'INT' }
   ]
   tests.kw_each do |sig:, name:|
@@ -137,7 +136,6 @@ describe FFI::Libfuse::Ackbar do
         FFI::Libfuse::Ackbar.trap(traps, force: true) do |ackbar|
           ackbar.monitor
           until stop
-            puts "Sleeping"
             sleep(1.1)
           end
         end
@@ -149,6 +147,9 @@ describe FFI::Libfuse::Ackbar do
       Process.kill('USR1', pid)
       sleep(0.05)
       Process.kill('HUP', pid)
+
+      # TODO: MacOS fork is borked.
+      sleep 5 if RUBY_PLATFORM =~ /darwin/
       _pid, status = Process.waitpid2(pid)
       expect(status.exitstatus).must_equal(2)
     end

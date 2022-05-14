@@ -81,8 +81,8 @@ module FFI
     extend FFI::Library
     ffi_lib FFI::Library::LIBC
 
-    attach_function :native_statvfs, :stat, [:string, by_ref], :int
-    attach_function :native_fstatvfs, :fstat, [:int, by_ref], :int
+    attach_function :native_statvfs, :statvfs, [:string, by_ref], :int
+    attach_function :native_fstatvfs, :fstatvfs, [:int, by_ref], :int
 
     # Fill from native statvfs for path
     # @param [:to_s] path

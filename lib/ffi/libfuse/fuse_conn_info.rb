@@ -2,6 +2,7 @@
 
 require_relative 'fuse_version'
 require_relative '../accessors'
+require_relative '../boolean_int'
 
 module FFI
   # Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)

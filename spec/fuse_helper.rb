@@ -3,6 +3,7 @@
 require_relative 'spec_helper'
 require_relative '../lib/ffi/libfuse'
 require 'open3'
+require 'sys-filesystem'
 
 # utilities for running tests with fuse filesystems
 module LibfuseHelper
@@ -14,7 +15,19 @@ module LibfuseHelper
   def with_fuse(operations, *args, **options)
     raise 'Needs block' unless block_given?
 
+    # ignore MacOS special files
+    args << '-onoappledouble,noapplexattr' if macos?
+    #args << '-d'
     safe_fuse do |mnt|
+
+      # Start the fork before loading fuse (for MacOS)
+      fpid = Process.fork do
+        begin
+          sleep 1 # Give fuse a chance to start
+          yield mnt
+        end
+      end
+
       fuse = FFI::Libfuse::Main.fuse_create(mnt, *args, operations: operations)
       _(fuse).wont_be_nil
       _(fuse).must_be(:mounted?)
@@ -23,23 +36,34 @@ module LibfuseHelper
       fuse.default_traps.delete(:TERM)
       fuse.default_traps.delete(:INT)
 
-      fpid = Kernel.fork { yield mnt }
       t = Thread.new { fuse.run(foreground: true, **options) }
-      _pid, block_result = Process.waitpid2(fpid)
-      fuse.exit
+
+      # TODO: Work out why waitpid2 hangs on mac unless the process has already finished
+      sleep 5 if macos?
+
+      _pid, block_status = Process.waitpid2(fpid)
+      block_exit = block_status.exitstatus
+
+      fuse.exit&.join
+
       run_result = t.value
+
       _(fuse).wont_be(:mounted?)
-      _(block_result).must_equal(0, 'File operations')
+      _(block_exit).must_equal(0, 'File operations')
       _(run_result).must_equal(0, 'Fuse run')
+      unless macos?
+        (mounted?(mnt) || false).must_equal(false, "Unmounted at OS level #{mnt}")
+      end
     end
   end
   # rubocop:enable Metrics/AbcSize
 
-  def mounted?(mnt, filesystem = nil)
-    mounts = File.readlines('/proc/mounts')
-    mounts.detect do |line|
-      line_fs, line_mnt, = line.split(/\s+/)
-      (!filesystem || line_fs == filesystem) && line_mnt == mnt
+  def mounted?(mnt, filesystem = '.*')
+    if macos?
+      mounts = Sys::Filesystem.mounts.select { |m| m.mount_type == 'macfuse' }
+      mounts.detect { |m| m.mount_point == "/private#{mnt}" }
+    else
+      File.readlines('/proc/mounts').detect { |line| lines =~ /#{filesystem}\s+#{mnt}/ }
     end
   end
 
@@ -49,7 +73,7 @@ module LibfuseHelper
     safe_fuse do |mnt|
       t = Thread.new do
         Bundler.with_unbundled_env do
-          Open3.capture3('bundle', 'exec', "sample/#{filesystem}", mnt, *args, binmode: true)
+          Open3.capture3('bundle', 'exec', "sample/#{filesystem}", mnt, "-ofsname=#{filesystem}", *args, binmode: true)
         end
       end
       sleep 1
@@ -60,11 +84,11 @@ module LibfuseHelper
 
           yield mnt
         end
-        unmount(mnt) if mounted?(mnt, filesystem)
+        unmount(mnt) if mounted?(mnt)
         o, e, s = t.value
         [o, e, s.exitstatus]
-      rescue StandardError, Minitest::Assertion
-        unmount(mnt) if mounted?(mnt, filesystem)
+      rescue StandardError, Minitest::Assertion => _err
+        unmount(mnt) if mounted?(mnt)
         o, e, _s = t.value
         warn "Errors\n#{e}" unless e.empty?
         warn "Output\n#{o}" unless o.empty?
@@ -74,14 +98,23 @@ module LibfuseHelper
   end
 
   def unmount(mnt)
-    system("fusermount -zu #{mnt} >/dev/null 2>&1")
+    if macos?
+      system("diskutil unmount force #{mnt} >/dev/null 2>&1")
+    else
+      system("fusermount -zu #{mnt} >/dev/null 2>&1")
+    end
   end
 
   def safe_fuse
     Dir.mktmpdir('ffi-libfuse-spec') do |mountpoint|
       yield mountpoint
     ensure
-      unmount(mountpoint)
+      # Attempt to force unmount.
+      unmount(mountpoint) if mounted?(mountpoint)
     end
+  end
+
+  def macos?
+    RUBY_PLATFORM =~ /darwin/
   end
 end

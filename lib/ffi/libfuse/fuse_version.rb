@@ -9,8 +9,15 @@ module FFI
   module Libfuse
     extend FFI::Library
 
+    libs =
+      case FFI::Platform::NAME
+      when 'x86_64-darwin'
+        %w[libfuse.2.dylib]
+      else
+        %w[libfuse3.so.3 libfuse.so.2]
+      end
     # The fuse library to load from 'LIBFUSE' environment variable if set, otherwise prefer Fuse3 over Fuse2
-    LIBFUSE = ENV.fetch('LIBFUSE', nil) || %w[libfuse3.so.3 libfuse.so.2]
+    LIBFUSE = ENV.fetch('LIBFUSE', libs)
     ffi_lib(LIBFUSE)
 
     # @!scope class

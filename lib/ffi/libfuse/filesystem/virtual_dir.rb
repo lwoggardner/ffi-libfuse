@@ -228,6 +228,7 @@ module FFI
         # Calls destroy on all current entries
         def destroy(*_args)
           entries.each_pair { |name, d| entry_send(d, :destroy, init_results[name]) }
+          nil
         end
 
         # @!endgroup

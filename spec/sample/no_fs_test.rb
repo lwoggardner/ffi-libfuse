@@ -31,13 +31,14 @@ describe 'NoFS' do
     { name: 'multi thread foreground', args: %w[-f], stderr: '' },
     { name: 'single thread daemonized', args: %w[-s], stderr: '' },
     { name: 'multi thread daemonized', args: %w[-d], stderr: '' },
-    #{ name: 'native loop single threaded foreground', args: %w[-f -s -o native], stderr: '' },
-    #{ name: 'native loop single threaded debug', args: %w[-s -d -o native], stderr: [/:single_thread=>true/,/NoFS.*readdir/,/NoFS: DEBUG enabled/] },
-    #{ name: 'native loop multi thread foreground', args: %w[-f -o native], stderr: '' },
-    #{ name: 'native loop single thread daemonized', args: %w[-s -o native], stderr: '' },
+    { name: 'native loop single threaded foreground', args: %w[-f -s -o native], stderr: '' },
+    { name: 'native loop single threaded debug', args: %w[-s -d -o native], stderr: [/:single_thread=>true/,/NoFS.*readdir/,/NoFS: DEBUG enabled/] },
+    { name: 'native loop multi thread foreground', args: %w[-f -o native], stderr: '' },
+    { name: 'native loop single thread daemonized', args: %w[-s -o native], stderr: '' },
   ].kw_each do |name:, args:, stderr:|
     it name do
       act_stdout, act_stderr, status = run_sample(fs, *args) do |mnt|
+        expect(Dir.exist?(mnt)).must_equal(true, "#{mnt} will exist")
         expect(Dir.exist?("#{mnt}/other")).must_equal(false,"#{mnt}/other won't exist")
         entries = Dir.entries("#{mnt}")
         expect(entries.size).must_equal(2)

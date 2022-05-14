@@ -108,6 +108,10 @@ module FFI
         Time.at(sec, nsec, :nsec, in: 0).utc
       end
 
+      def to_s(now = nil)
+        time(now).to_s
+      end
+
       # Convert to Integer
       # @param [Time|nil] now
       #   optional value to use if {now?} is true.  If not set then Time.now will be used

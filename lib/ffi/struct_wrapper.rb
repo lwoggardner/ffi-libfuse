@@ -96,5 +96,13 @@ module FFI
     def []=(member_or_attr, val)
       @native[self.class.ffi_attr_writers.fetch(member_or_attr, member_or_attr)] = val
     end
+
+    def method_missing(method, *args)
+      @native.send(method, *args)
+    end
+
+    def respond_to_missing?(method, private = false)
+      @native.respond_to?(method, private)
+    end
   end
 end
