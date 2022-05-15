@@ -131,8 +131,8 @@ describe FFI::Libfuse::Ackbar do
       unless pid
         count = 0
         stop = false
-        traps['USR1'] = -> {  puts "USR1 #{count}"; count += 1 }
-        traps['HUP'] = -> { puts "HUP"; stop = true }
+        traps['USR1'] = -> { count += 1 }
+        traps['HUP'] = -> { stop = true }
         FFI::Libfuse::Ackbar.trap(traps, force: true) do |ackbar|
           ackbar.monitor
           until stop

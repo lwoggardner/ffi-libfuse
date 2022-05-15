@@ -10,7 +10,7 @@ require 'sys/filesystem'
 # * We understand how Fuse maps file operations to filesystem callbacks
 # * Other bugs and errors
 # It is not intended to test that Fuse itself works
-describe 'MockFS' do
+describe "MockFS #{FFI::Libfuse::FUSE_VERSION}" do
 
   include LibfuseHelper
 

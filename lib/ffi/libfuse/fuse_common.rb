@@ -183,9 +183,10 @@ module FFI
         loop do
           timeout = fuse_cache_timeout(remember)
           ready, errors = fuse_io_select(selectable, timeout)
+
           break if fuse_exited?
 
-          raise 'fuse_loop io error' if errors.any?
+          raise "fuse_loop io error #{errors}" if errors.any?
 
           selectable.delete(signals.pr) if ready.include?(signals.pr) && !signals.next
           fuse_process if ready.include?(io)
@@ -229,12 +230,19 @@ module FFI
       def exit(_signame = nil)
         return unless @fuse
 
-        # Unmount/exit in a separate thread IF called from within the fuse loop itself.
+        # Unmount/exit in a separate thread so the main fuse thread can keep running.
         @exit ||= Thread.new do
+          # On linux we need to exit before unmount,  reverse on macfuse
+          Libfuse.fuse_exit(@fuse) unless mac_fuse?
+
           unmount
-          # without this sleep before exit, MacOS does not complete unmounting
-          sleep 0.2
-          Libfuse.fuse_exit(@fuse)
+
+          if mac_fuse?
+            # without this sleep before exit, MacOS does not complete unmounting
+            sleep 0.2
+            Libfuse.fuse_exit(@fuse)
+          end
+
           true
         end
       end
@@ -262,6 +270,10 @@ module FFI
           prev = Signal.trap(sig, 'SYSTEM_DEFAULT')
           Signal.trap(sig, prev) unless prev == 'DEFAULT'
         end
+      end
+
+      def mac_fuse?
+        FFI::Platform::IS_MAC
       end
     end
   end

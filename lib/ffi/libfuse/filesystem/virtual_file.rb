@@ -86,7 +86,7 @@ module FFI
         private
 
         def sio(ffi)
-          ffi&.fh || StringIO.new(content, ffi.flags)
+          ffi&.fh || StringIO.new(content, ffi&.flags)
         end
       end
     end

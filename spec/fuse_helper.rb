@@ -17,7 +17,7 @@ module LibfuseHelper
 
     # ignore MacOS special files
     args << '-onoappledouble,noapplexattr' if macos?
-    #args << '-d'
+    args << '-d'
     safe_fuse do |mnt|
 
       # Start the fork before loading fuse (for MacOS)
@@ -25,13 +25,14 @@ module LibfuseHelper
         begin
           sleep 1 # Give fuse a chance to start
           yield mnt
+          sleep 1
         end
       end
 
       fuse = FFI::Libfuse::Main.fuse_create(mnt, *args, operations: operations)
       _(fuse).wont_be_nil
       _(fuse).must_be(:mounted?)
-      _(mounted?(mnt) && true).must_equal(true)
+      #_(mounted?(mnt) && true).must_equal(true)
       # Rake owns INT
       fuse.default_traps.delete(:TERM)
       fuse.default_traps.delete(:INT)
@@ -43,28 +44,25 @@ module LibfuseHelper
 
       _pid, block_status = Process.waitpid2(fpid)
       block_exit = block_status.exitstatus
+      warn "#{block_status}"
 
       fuse.exit&.join
-
       run_result = t.value
 
       _(fuse).wont_be(:mounted?)
       _(block_exit).must_equal(0, 'File operations')
       _(run_result).must_equal(0, 'Fuse run')
       unless macos?
-        (mounted?(mnt) || false).must_equal(false, "Unmounted at OS level #{mnt}")
+        _(mounted?(mnt) || false).must_equal(false, "Unmounted at OS level #{mnt}")
       end
     end
   end
   # rubocop:enable Metrics/AbcSize
 
   def mounted?(mnt, filesystem = '.*')
-    if macos?
-      mounts = Sys::Filesystem.mounts.select { |m| m.mount_type == 'macfuse' }
-      mounts.detect { |m| m.mount_point == "/private#{mnt}" }
-    else
-      File.readlines('/proc/mounts').detect { |line| lines =~ /#{filesystem}\s+#{mnt}/ }
-    end
+    type, prefix = macos? ? %w[macfuse /private] : %w[fuse]
+    mounts = Sys::Filesystem.mounts.select { |m| m.mount_type == type }
+    mounts.detect { |m| m.mount_point == "#{prefix}#{mnt}" }
   end
 
   # Runs a filesystem in a separate process via Open3.capture3
@@ -98,6 +96,7 @@ module LibfuseHelper
   end
 
   def unmount(mnt)
+    warn "unmounting"
     if macos?
       system("diskutil unmount force #{mnt} >/dev/null 2>&1")
     else

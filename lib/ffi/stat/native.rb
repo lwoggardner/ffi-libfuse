@@ -25,7 +25,7 @@ module FFI
                :st_mtimespec, TimeSpec,
                :st_ctimespec, TimeSpec
 
-        Stat.attach_function :native_fstat, :stat, [:string, by_ref], :int
+        Stat.attach_function :native_stat, :stat, [:string, by_ref], :int
         Stat.attach_function :native_lstat, :lstat, [:string, by_ref], :int
         Stat.attach_function :native_fstat, :fstat, [:int, by_ref], :int
 

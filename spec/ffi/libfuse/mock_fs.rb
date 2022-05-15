@@ -10,7 +10,7 @@ class MockFS
   def initialize(debug: false, paths: {})
     @mock = Minitest::Mock.new
     @paths = paths
-    @debug = debug
+    @debug = true # debug
   end
 
   def fuse_respond_to?(method)
