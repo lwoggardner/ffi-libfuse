@@ -20,11 +20,7 @@ module FFI
     LIBFUSE = ENV.fetch('LIBFUSE', libs)
     ffi_lib(LIBFUSE)
 
-    # @!scope class
-    # @!method fuse_version()
-    # @return [Integer] the fuse version
-    # See {FUSE_VERSION} which captures this result in a constant
-
+    # @!visibility private
     attach_function :fuse_version, [], :int
 
     # prior to 3.10 this is Major * 10 + Minor, after 3.10 and later is Major * 100 + Minor
@@ -43,6 +39,7 @@ module FFI
       require_relative '../gnu_extensions'
 
       extend(GNUExtensions)
+
       # libfuse2 has busted symbols
       ffi_lib_versions(%w[FUSE_2.9.1 FUSE_2.9 FUSE_2.8 FUSE_2.7 FUSE_2.6 FUSE_2.5 FUSE_2.4 FUSE_2.3 FUSE_2.2])
     end
