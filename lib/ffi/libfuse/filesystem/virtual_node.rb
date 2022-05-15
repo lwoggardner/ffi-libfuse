@@ -24,7 +24,7 @@ module FFI
         # @param [Accounting] accounting accumulator of filesystem statistics
         def initialize(accounting: Accounting.new)
           @accounting = accounting
-          @accounting.adjust(0, 1)
+
           @virtual_xattr = {}
         end
 
@@ -83,16 +83,17 @@ module FFI
 
         # @!endgroup
 
-        private
-
+        # Initialise the stat information for the node - should only be called once (eg from create or mkdir)
         def init_node(mode, ctx: FuseContext.get, now: Time.now)
           @virtual_stat = { mode: mode & ~ctx.umask, uid: ctx.uid, gid: ctx.gid, ctime: now, mtime: now, atime: now }
           accounting&.adjust(0, +1)
           self
         end
 
+        private
+
         def root?(path)
-          path == '/'
+          path.to_s == '/'
         end
       end
     end

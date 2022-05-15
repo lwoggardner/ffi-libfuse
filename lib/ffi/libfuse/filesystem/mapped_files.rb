@@ -24,7 +24,7 @@ module FFI
           end
 
         # @return [Accounting|nil]
-        #   if stet the accounting object will be used to provide {#statfs} for the root path
+        #   if set the accounting object will be used to provide {#statfs} for the root path
         # @note the real LIBC statvfs is always used for non-root paths
         attr_accessor :accounting
 
@@ -38,6 +38,9 @@ module FFI
         #
         #    If an optional filesystem value is returned fuse callbacks will be passed on to this filesystem with the
         #    mapped_path and other callback args unchanged
+        #  @return [nil]
+        #
+        #    eg on create to indicate the path does not exist
 
         # Manipulate file attributes
         #
@@ -65,7 +68,9 @@ module FFI
 
         # Create real file - assuming the path can be mapped before it exists
         def create(path, perms, ffi)
-          path_method(__method__, path, perms, ffi) { |rp| File.open(rp, ffi.flags, perms) }
+          path_method(__method__, path, perms, ffi, error: Errno::EROFS) do |rp|
+            File.open(rp, ffi.flags, perms)
+          end
         end
 
         # @return [File] the newly opened file at {#map_path}(path)
@@ -103,7 +108,7 @@ module FFI
         def listxattr(path)
           return [] unless HAS_XATTR
 
-          path_method(__method, path) { |rp| Xattr.new(rp).list }
+          path_method(__method__, path) { |rp| Xattr.new(rp).list }
         end
 
         # TODO: Set xattr
@@ -124,8 +129,10 @@ module FFI
 
         private
 
-        def path_method(callback, path, *args, block: nil)
+        def path_method(callback, path, *args, error: Errno::ENOENT, block: nil)
           rp, fs = map_path(path)
+          raise error if error && !rp
+
           fs ? fs.send(callback, rp, *args, &block) : yield(rp)
         end
       end

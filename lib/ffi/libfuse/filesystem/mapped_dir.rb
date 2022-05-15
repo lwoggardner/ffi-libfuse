@@ -5,52 +5,69 @@ require_relative 'mapped_files'
 module FFI
   module Libfuse
     module Filesystem
-      # A abstract directory of {MappedFiles}
+      # A read-only directory of {MappedFiles}
       #
       # Subclasses must implement {#entries} and {#map_path}
-      module MappedDir
+      class MappedDir
         include MappedFiles
-
-        # Default fills stat wth mode 750 and nlinks from size of entries
-        # @param [FFI::Stat] stat to be filled with attributes for this directory
-        # @return [void]
-        def dir_stat(stat)
-          stat.directory(mode: 0o0750, nlink: entries.size + 1)
-        end
+        include Utils
+        attr_accessor :stat
 
         # @!method entries
         #  @abstract
         #  @return [Enumerable] set of entries in this directory (excluding '.' and '..')
 
+        def initialize(accounting: nil)
+          @accounting = accounting
+          @root = VirtualNode.new(accounting: accounting)
+        end
+
         # @!group Fuse Callbacks
 
-        # For root path sets stat to {#dir_stat}, otherwise pass on to super {MappedFiles#getattr}
-        # @return [self]
+        # For the root path provides this directory's stat information, otherwise passes on to the next filesystem
         def getattr(path, stat = nil, _ffi = nil)
           return super unless root?(path)
 
-          dir_stat(stat) if stat
+          stat&.directory(@root.virtual_stat.merge({ nlink: entries.size + 2 }))
+
           self
         end
 
         # For root path enumerates {#entries}
         # @raise [Errno::ENOTDIR] unless root path
         def readdir(path, *_args, &block)
-          return path_method(__method__, path, *args, block: block) { |_rp| Errno::ENOTDIR } unless root?(path)
+          raise Errno::ENOTDIR unless root?(path)
 
-          %w[. ..].each(&block)
-          entries.each(&block)
+          %w[. ..].concat(entries).each(&block)
         end
 
-        # @return [self]
-        # @raise [Errno::ENOTDIR] unless root path
-        def opendir(path, *_args)
-          return self if root?(path) # Help virtual dir get to us quickly
+        def mkdir(path, mode, *_args)
+          raise Errno::EROFS unless root?(path)
 
-          path_method(__method__, path, *args) { |_rp| Errno::ENOTDIR }
+          @root.init_node(mode)
         end
 
         # @!endgroup
+
+        # Passes FUSE Callbacks on to the {#root} filesystem
+        def method_missing(method, path = nil, *args, &block)
+          return @root.public_send(method, path, *args, &block) if @root.respond_to?(method) && root?(path)
+
+          raise Errno::ENOTSUP if FuseOperations.path_callbacks.include?(method)
+
+          super
+        end
+
+        def respond_to_missing?(method, private = false)
+          (FuseOperations.fuse_callbacks.include?(method) && @root.respond_to?(method, false)) || super
+        end
+
+        # subclass only call super for root path
+        def map_path(path)
+          raise ArgumentError, "map_path received non root path #{path}" unless root?(path)
+
+          [path, @root]
+        end
       end
     end
   end

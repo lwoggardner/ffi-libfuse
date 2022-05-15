@@ -8,4 +8,5 @@ gem 'ffi', path: '../ffi' if Dir.exist?(ENV.fetch('FFI_LOCAL', '../ffi'))
 gemspec
 
 gem 'minitest'
+gem 'minitest-reporters'
 gem 'rake'

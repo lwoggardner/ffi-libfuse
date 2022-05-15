@@ -16,18 +16,19 @@ module FFI
                :st_mode,    :mode_t,
                :st_uid,     :uid_t,
                :st_gid,     :gid_t,
-               :__pad0,     :int,
+               :__pad0,     :uint,
                :st_rdev,    :dev_t,
                :st_size,    :off_t,
                :st_blksize, :blksize_t,
                :st_blocks,  :blkcnt_t,
                :st_atimespec, TimeSpec,
                :st_mtimespec, TimeSpec,
-               :st_ctimespec, TimeSpec
+               :st_ctimespec, TimeSpec,
+               :unused, [:long, 3]
 
-        Stat.attach_function :native_stat, :stat, [:string, by_ref], :int
-        Stat.attach_function :native_lstat, :lstat, [:string, by_ref], :int
-        Stat.attach_function :native_fstat, :fstat, [:int, by_ref], :int
+        ::FFI::Stat.attach_function :native_stat, :stat, [:string, by_ref], :int
+        ::FFI::Stat.attach_function :native_lstat, :lstat, [:string, by_ref], :int
+        ::FFI::Stat.attach_function :native_fstat, :fstat, [:int, by_ref], :int
 
       when 'x86_64-darwin', 'aarch64-darwin'
         #  man stat - this is stat with 64 bit inodes.
@@ -50,11 +51,11 @@ module FFI
                :st_lspare,     :int32,
                :st_gspare,     :int64
 
-        # TODO: these functions are deprecated, but at least on Catalina the old stat functions
-        #       use the stat struct *without* 64 bit inodes
-        Stat.attach_function :native_stat, :stat64, [:string, by_ref], :int
-        Stat.attach_function :native_lstat, :lstat64, [:string, by_ref], :int
-        Stat.attach_function :native_fstat, :fstat64, [:int, by_ref], :int
+        # TODO: these functions are deprecated, but at least on Cataline -> Monterey the old stat functions
+        #       use the stat struct *without* 64 bit inodes, but macfuse is compiled with 64 bit inodes
+        ::FFI::Stat.attach_function :native_stat, :stat64, [:string, by_ref], :int
+        ::FFI::Stat.attach_function :native_lstat, :lstat64, [:string, by_ref], :int
+        ::FFI::Stat.attach_function :native_fstat, :fstat64, [:int, by_ref], :int
 
       else
         raise NotImplementedError, "FFI::Stat not implemented for FFI::Platform #{Platform::NAME}"

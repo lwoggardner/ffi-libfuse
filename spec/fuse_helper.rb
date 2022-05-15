@@ -16,16 +16,15 @@ module LibfuseHelper
     raise 'Needs block' unless block_given?
 
     # ignore MacOS special files
-    args << '-onoappledouble,noapplexattr' if macos?
-    args << '-d'
+    args << '-onoappledouble,noapplexattr' if mac_fuse?
+    #args << '-d'
     safe_fuse do |mnt|
 
       # Start the fork before loading fuse (for MacOS)
       fpid = Process.fork do
         begin
-          sleep 1 # Give fuse a chance to start
+          sleep 2 # Give fuse a chance to start
           yield mnt
-          sleep 1
         end
       end
 
@@ -40,11 +39,10 @@ module LibfuseHelper
       t = Thread.new { fuse.run(foreground: true, **options) }
 
       # TODO: Work out why waitpid2 hangs on mac unless the process has already finished
-      sleep 5 if macos?
+      sleep 5 if mac_fuse?
 
       _pid, block_status = Process.waitpid2(fpid)
       block_exit = block_status.exitstatus
-      warn "#{block_status}"
 
       fuse.exit&.join
       run_result = t.value
@@ -52,7 +50,7 @@ module LibfuseHelper
       _(fuse).wont_be(:mounted?)
       _(block_exit).must_equal(0, 'File operations')
       _(run_result).must_equal(0, 'Fuse run')
-      unless macos?
+      unless mac_fuse?
         _(mounted?(mnt) || false).must_equal(false, "Unmounted at OS level #{mnt}")
       end
     end
@@ -60,7 +58,7 @@ module LibfuseHelper
   # rubocop:enable Metrics/AbcSize
 
   def mounted?(mnt, filesystem = '.*')
-    type, prefix = macos? ? %w[macfuse /private] : %w[fuse]
+    type, prefix = mac_fuse? ? %w[macfuse /private] : %w[fuse]
     mounts = Sys::Filesystem.mounts.select { |m| m.mount_type == type }
     mounts.detect { |m| m.mount_point == "#{prefix}#{mnt}" }
   end
@@ -96,8 +94,7 @@ module LibfuseHelper
   end
 
   def unmount(mnt)
-    warn "unmounting"
-    if macos?
+    if mac_fuse?
       system("diskutil unmount force #{mnt} >/dev/null 2>&1")
     else
       system("fusermount -zu #{mnt} >/dev/null 2>&1")
@@ -113,7 +110,7 @@ module LibfuseHelper
     end
   end
 
-  def macos?
-    RUBY_PLATFORM =~ /darwin/
+  def mac_fuse?
+    FFI::Platform::IS_MAC
   end
 end

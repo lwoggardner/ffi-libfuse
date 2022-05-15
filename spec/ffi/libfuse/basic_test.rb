@@ -198,7 +198,7 @@ describe "MockFS #{FFI::Libfuse::FUSE_VERSION}" do
     it 'should report filesystem statistics' do
       # TODO: on MacOS statfs always applies to the root path
       #       and there is the statfs_x function that uses 64 bit inode structure
-      skip 'MacOS todo statvfs' if macos?
+      skip 'MacOS todo statvfs' if mac_fuse?
 
       mock_fs.paths = { '/testDir' => stat_as_dir }
       mock_fs.expect_file('/testDir/statfs', size: 12)
