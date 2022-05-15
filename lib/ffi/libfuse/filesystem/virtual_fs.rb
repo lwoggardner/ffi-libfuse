@@ -115,7 +115,8 @@ module FFI
         # Default fuse options
         # Subclasses can override this method and call super with the additional options:
         # @param [Hash] opts additional options to parse into the {#options} attribute
-        def fuse_options(args, opts: {})
+        def fuse_options(args, opts = {})
+          @options = {}
           opts = opts.merge({ 'no_buf' => :no_buf }).merge(Accounting::OPTIONS)
           args.parse!(opts) do |key:, value:, **|
             case key

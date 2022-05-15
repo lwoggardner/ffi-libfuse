@@ -314,7 +314,6 @@ module FFI
           %i[release releasedir].each do |fuse_method|
             define_method(fuse_method) do |*args|
               super(*args) if fuse_super_respond_to?(fuse_method)
-              fh.close if fh.respond_to?(:close)
             ensure
               release_handle(args.last)
             end

@@ -45,7 +45,7 @@ module FFI
         attr_reader :nodes
 
         # @return [Integer] block size for statvfs
-        attr_writer :block_size
+        attr_accessor :block_size
 
         def initialize(max_space: 0, max_nodes: 0)
           @nodes = 0
@@ -90,21 +90,25 @@ module FFI
           self
         end
 
+        # rubocop:disable Metrics/AbcSize
+
         # @param [FFI::StatVfs] statvfs an existing statvfs buffer to fill
         # @param [Integer] block_size
         # @return [FFI::StatVfs] the filesystem statistics
         def to_statvfs(statvfs = FFI::StatVfs.new, block_size: self.block_size || 1024)
-          used_blocks = space / block_size
-          max_blocks = max_space.positive? ? (max_space / block_size) : used_blocks + max_space
+          used_blocks, max_blocks = [space, max_space].map { |s| s / block_size }
+          max_blocks = used_blocks - max_blocks unless max_blocks.positive?
+          max_files = max_nodes.positive? ? max_nodes : nodes - max_nodes
           statvfs.bsize    = block_size # block size (in Kb)
           statvfs.frsize   = block_size # fragment size pretty much always bsize
           statvfs.blocks   = max_blocks
           statvfs.bfree    = max_blocks - used_blocks
           statvfs.bavail   = max_blocks - used_blocks
-          statvfs.files    = max_nodes
-          statvfs.ffree    = max_nodes - nodes
+          statvfs.files    = max_files
+          statvfs.ffree    = max_files - nodes
           statvfs
         end
+        # rubocop:enable Metrics/AbcSize
       end
     end
   end

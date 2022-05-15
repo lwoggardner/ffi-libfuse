@@ -291,9 +291,7 @@ module FFI
         end
 
         def entry_fuse_respond_to?(entry_fs, method)
-          return entry_fs.fuse_respond_to?(method) if entry_fs.respond_to?(:fuse_respond_to?)
-
-          entry_fs.respond_to?(method)
+          entry_fs.respond_to?(:fuse_respond_to?) ? entry_fs.fuse_respond_to?(method) : entry_fs.respond_to?(method)
         end
 
         def entry_send(entry, callback, *args)

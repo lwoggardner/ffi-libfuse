@@ -37,10 +37,10 @@ module FFI
         # @param [Integer] mode
         # @param [FuseFileInfo] ffi
         # @return [Object] a file handled (captured by {Adapter::Ruby::Prepend})
-        def create(_path, mode, ffi)
+        def create(_path, mode, ffi = nil)
           init_node(mode)
           @content = String.new(encoding: 'binary')
-          sio(ffi)
+          sio(ffi) if ffi
         end
 
         def open(_path, ffi)
