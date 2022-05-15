@@ -6,7 +6,7 @@ require_relative 'stat/constants'
 module FFI
   # Ruby representation of stat.h struct
   class Stat
-    # We need to be a StructWrapper because of clash with #size
+    # Use a StructWrapper because of clash with #size and the ability to attach functions
     include StructWrapper
 
     extend FFI::Library
