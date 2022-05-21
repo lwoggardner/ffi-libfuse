@@ -22,6 +22,7 @@ describe 'FFI::Stat' do
   end
 
   it 'maps the stat struct same as File.stat' do
+    skip unless FFI::Stat.respond_to?(:native_stat) # native stat is not always available
     stat = FFI::Stat.stat(__FILE__)
     rstat = File.stat(__FILE__)
     common_members = FFI::Stat.ffi_attr_readers.keys.select { |m| rstat.respond_to?(m) }

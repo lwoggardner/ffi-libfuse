@@ -26,9 +26,13 @@ module FFI
                :st_ctimespec, TimeSpec,
                :unused, [:long, 3]
 
-        ::FFI::Stat.attach_function :native_stat, :stat, [:string, by_ref], :int
-        ::FFI::Stat.attach_function :native_lstat, :lstat, [:string, by_ref], :int
-        ::FFI::Stat.attach_function :native_fstat, :fstat, [:int, by_ref], :int
+        begin
+          ::FFI::Stat.attach_function :native_stat, :stat, [:string, by_ref], :int
+          ::FFI::Stat.attach_function :native_lstat, :lstat, [:string, by_ref], :int
+          ::FFI::Stat.attach_function :native_fstat, :fstat, [:int, by_ref], :int
+        rescue FFI::NotFoundError
+          # gLibc 2.31 (Ubuntu focal) does not export these functions, they are only used in testing
+        end
 
       when 'x86_64-darwin', 'aarch64-darwin'
         #  man stat - this is stat with 64 bit inodes.
@@ -51,11 +55,15 @@ module FFI
                :st_lspare,     :int32,
                :st_gspare,     :int64
 
-        # TODO: these functions are deprecated, but at least on Cataline -> Monterey the old stat functions
-        #       use the stat struct *without* 64 bit inodes, but macfuse is compiled with 64 bit inodes
-        ::FFI::Stat.attach_function :native_stat, :stat64, [:string, by_ref], :int
-        ::FFI::Stat.attach_function :native_lstat, :lstat64, [:string, by_ref], :int
-        ::FFI::Stat.attach_function :native_fstat, :fstat64, [:int, by_ref], :int
+        begin
+          # TODO: these functions are deprecated, but at least on Cataline -> Monterey the old stat functions
+          #       use the stat struct *without* 64 bit inodes, but macfuse is compiled with 64 bit inodes
+          ::FFI::Stat.attach_function :native_stat, :stat64, [:string, by_ref], :int
+          ::FFI::Stat.attach_function :native_lstat, :lstat64, [:string, by_ref], :int
+          ::FFI::Stat.attach_function :native_fstat, :fstat64, [:int, by_ref], :int
+        rescue FFI::NotFoundError
+          # these are only used in testing
+        end
 
       else
         raise NotImplementedError, "FFI::Stat not implemented for FFI::Platform #{Platform::NAME}"
