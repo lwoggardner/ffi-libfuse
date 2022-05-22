@@ -34,7 +34,7 @@ end:
 - FUSE_PKG=fuse3 LIBFUSE=libfuse3.so.3
 before_install:
 - sudo apt-get update -y
-- sudo apt-get install -qq pkg-config libc6 ${FUSE_PKG}
+- sudo apt-get install -qq pkg-config ${FUSE_PKG} libffi-dev gcc make
 - sudo modprobe fuse
 - sudo chmod 666 /dev/fuse
 - sudo chown root:$USER /etc/fuse.conf

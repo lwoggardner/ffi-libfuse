@@ -26,12 +26,19 @@ module FFI
                :st_ctimespec, TimeSpec,
                :unused, [:long, 3]
 
-        begin
-          ::FFI::Stat.attach_function :native_stat, :stat, [:string, by_ref], :int
-          ::FFI::Stat.attach_function :native_lstat, :lstat, [:string, by_ref], :int
-          ::FFI::Stat.attach_function :native_fstat, :fstat, [:int, by_ref], :int
-        rescue FFI::NotFoundError
-          # gLibc 2.31 (Ubuntu focal) does not export these functions, they are only used in testing
+        [['', :string], ['l', :string], ['f', :int]].each do |(prefix, ftype)|
+          native_func = "native_#{prefix}stat".to_sym
+          lib_func = "#{prefix}stat".to_sym
+          begin
+            ::FFI::Stat.attach_function native_func, lib_func, [ftype, by_ref], :int
+          rescue FFI::NotFoundError
+            # gLibc 2.31 (Ubuntu focal) does not export these functions, it maps them to __xstat variants
+            native_xfunc = "native_#{prefix}xstat".to_sym
+            lib_xfunc = "__#{prefix}xstat".to_sym
+            ::FFI::Stat.attach_function native_xfunc, lib_xfunc, [:int, ftype, by_ref], :int
+            # 1 is 64 bit versions of struct stat,  3 is 32 bit
+            ::FFI::Stat.define_singleton_method(native_func) { |file, buf| send(native_xfunc, 1, file, buf) }
+          end
         end
 
       when 'x86_64-darwin', 'aarch64-darwin'

@@ -2,7 +2,7 @@
 
 require 'rake/clean'
 
-CLOBBER.include ['pkg/', 'doc/']
+CLOBBER.include %w[pkg/ doc/]
 
 require 'rake/testtask'
 
