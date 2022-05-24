@@ -240,7 +240,8 @@ module FFI
           unmount
 
           warn 'exit again'
-          if true || mac_fuse?
+          linux = !mac_fuse?
+          if linux || mac_fuse?
             # without this sleep before exit, MacOS does not complete unmounting
             sleep 0.2
             Libfuse.fuse_exit(@fuse)
