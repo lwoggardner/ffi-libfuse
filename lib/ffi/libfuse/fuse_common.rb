@@ -184,7 +184,7 @@ module FFI
           timeout = fuse_cache_timeout(remember)
           ready, errors = fuse_io_select(selectable, timeout)
 
-          warn "select timed out" unless ready.any? || errors.any?
+          warn 'select timed out' unless ready.any? || errors.any?
 
           break if fuse_exited?
 
