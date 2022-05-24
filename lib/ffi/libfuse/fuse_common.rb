@@ -13,9 +13,9 @@ module FFI
     attach_function :fuse_get_session, [:fuse], :session
     attach_function :fuse_set_signal_handlers, [:session], :int
     attach_function :fuse_remove_signal_handlers, [:session], :void
-    attach_function :fuse_loop, [:fuse], :int, blocking: false
+    attach_function :fuse_loop, [:fuse], :int
     attach_function :fuse_clean_cache, [:fuse], :int
-    attach_function :fuse_exit, [:fuse], :void, blocking: false
+    attach_function :fuse_exit, [:fuse], :void
     attach_function :fuse_destroy, [:fuse], :void
     attach_function :fuse_daemonize, [:int], :int
 
@@ -184,6 +184,8 @@ module FFI
           timeout = fuse_cache_timeout(remember)
           ready, errors = fuse_io_select(selectable, timeout)
 
+          warn "select timed out" unless ready.any? || errors.any?
+
           break if fuse_exited?
 
           raise "fuse_loop io error #{errors}" if errors.any?
@@ -240,9 +242,7 @@ module FFI
           warn 'Unmounting in fuse exit'
           unmount
 
-          warn 'exit again'
-          linux = !mac_fuse?
-          if linux || mac_fuse?
+          if mac_fuse?
             # without this sleep before exit, MacOS does not complete unmounting
             sleep 0.2
             Libfuse.fuse_exit(@fuse)

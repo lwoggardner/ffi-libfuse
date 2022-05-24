@@ -18,7 +18,7 @@ module FFI
     attach_function :fuse_mount2, :fuse_mount, [:string, FuseArgs.by_ref], :chan
     attach_function :fuse_new2, :fuse_new, [:chan, FuseArgs.by_ref, FuseOperations.by_ref, :size_t, RubyObject], :fuse
     attach_function :fuse_chan_fd, [:chan], :int
-    attach_function :fuse_read_cmd, [:fuse], :cmd, blocking: true
+    attach_function :fuse_read_cmd, [:fuse], :cmd, blocking: false
     attach_function :fuse_process_cmd, %i[fuse cmd], :void, blocking: true
     attach_function :fuse_exited2, :fuse_exited, [:fuse], :int
     attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void, blocking: true
