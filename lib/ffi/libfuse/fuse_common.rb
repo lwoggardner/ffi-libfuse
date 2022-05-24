@@ -232,12 +232,15 @@ module FFI
 
         # Unmount/exit in a separate thread so the main fuse thread can keep running.
         @exit ||= Thread.new do
+          warn 'Fuse exit thread'
           # On linux we need to exit before unmount,  reverse on macfuse
           Libfuse.fuse_exit(@fuse) unless mac_fuse?
 
+          warn 'Unmounting in fuse exit'
           unmount
 
-          if mac_fuse?
+          warn 'exit again'
+          if true || mac_fuse?
             # without this sleep before exit, MacOS does not complete unmounting
             sleep 0.2
             Libfuse.fuse_exit(@fuse)
