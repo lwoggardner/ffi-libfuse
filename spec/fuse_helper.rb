@@ -39,7 +39,8 @@ module LibfuseHelper
       t = Thread.new { fuse.run(foreground: true, **options) }
 
       # TODO: Work out why waitpid2 hangs on mac unless the process has already finished
-      sleep 5 if mac_fuse?
+      #       and on travis!!
+      sleep 5 # if mac_fuse?
 
       _pid, block_status = Process.waitpid2(fpid)
       block_exit = block_status.exitstatus
