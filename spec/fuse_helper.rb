@@ -40,14 +40,18 @@ module LibfuseHelper
 
       # TODO: Work out why waitpid2 hangs on mac unless the process has already finished
       #       and on travis!!
-      sleep 5 # if mac_fuse?
+      sleep 5 if mac_fuse?
 
+      warn "Waiting file ops"
       _pid, block_status = Process.waitpid2(fpid)
       block_exit = block_status.exitstatus
+      warn "File ops finished with status #{block_exit}"
 
+      warn 'Exiting fuse'
       fuse.exit&.join
       run_result = t.value
 
+      warn "Fuse finished with #{run_result}"
       _(fuse).wont_be(:mounted?)
       _(block_exit).must_equal(0, 'File operations')
       _(run_result).must_equal(0, 'Fuse run')
@@ -107,6 +111,7 @@ module LibfuseHelper
     Dir.mktmpdir('ffi-libfuse-spec') do |mountpoint|
       yield mountpoint
     ensure
+      warn "unmounting #{mountpoint}"
       # Attempt to force unmount.
       unmount(mountpoint) if mounted?(mountpoint)
     end
