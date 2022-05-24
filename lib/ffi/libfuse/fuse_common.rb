@@ -255,7 +255,7 @@ module FFI
       private
 
       def fuse_cache_timeout(remember)
-        remember ? fuse_clean_cache : nil
+        remember ? fuse_clean_cache : 20
       end
 
       def fuse_io_select(io_array, timeout)
