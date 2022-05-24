@@ -49,6 +49,7 @@ module LibfuseHelper
 
       warn 'Exiting fuse'
       fuse.exit&.join
+      warn 'Exit joined'rue ||
       run_result = t.value
 
       warn "Fuse finished with #{run_result}"

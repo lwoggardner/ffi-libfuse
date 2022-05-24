@@ -191,6 +191,7 @@ module FFI
           selectable.delete(signals.pr) if ready.include?(signals.pr) && !signals.next
           fuse_process if ready.include?(io)
         end
+        warn 'Fuse loop exit'
       end
 
       # @api private
@@ -246,7 +247,7 @@ module FFI
             sleep 0.2
             Libfuse.fuse_exit(@fuse)
           end
-
+          warn 'Exit thread done'
           true
         end
       end
