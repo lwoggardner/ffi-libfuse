@@ -1,5 +1,6 @@
 # All . files unless explicitly included
 .**/*
+*.log
 Gemfile.lock
 /coverage/
 /doc/

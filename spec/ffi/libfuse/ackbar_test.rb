@@ -118,7 +118,7 @@ describe FFI::Libfuse::Ackbar do
         count += 1
         0.1
       end
-      sleep(0.5)
+      sleep(0.6)
       ackbar.close
       m.join
       expect(count).must_be :>=, 5
