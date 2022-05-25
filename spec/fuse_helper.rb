@@ -17,7 +17,6 @@ module LibfuseHelper
 
     # ignore MacOS special files
     args << '-onoappledouble,noapplexattr' if mac_fuse?
-    args << '-d'
     safe_fuse do |mnt|
 
       # Start the fork before loading fuse (for MacOS)
@@ -111,7 +110,6 @@ module LibfuseHelper
     Dir.mktmpdir('ffi-libfuse-spec') do |mountpoint|
       yield mountpoint
     ensure
-      warn "unmounting #{mountpoint}"
       # Attempt to force unmount.
       unmount(mountpoint) if mounted?(mountpoint)
     end

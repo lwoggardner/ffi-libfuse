@@ -184,14 +184,13 @@ module FFI
           timeout = fuse_cache_timeout(remember)
           ready, errors = fuse_io_select(selectable, timeout)
 
-          warn 'select timed out' unless ready.any? || errors.any?
+          selectable.delete(signals.pr) if ready.include?(signals.pr) && !signals.next
 
           break if fuse_exited?
 
-          raise "fuse_loop io error #{errors}" if errors.any?
-
-          selectable.delete(signals.pr) if ready.include?(signals.pr) && !signals.next
           fuse_process if ready.include?(io)
+
+          raise "fuse_loop io error #{errors}" if errors.any?
         end
         warn 'Fuse loop exit'
       end
@@ -230,24 +229,23 @@ module FFI
       # generally expected to be called from a signal handler inside the fuse loop.
       #
       # @return [Thread] the unmount thread
-      def exit(signame = nil)
+      def exit(_signame = nil)
         return unless @fuse
 
         # Unmount/exit in a separate thread so the main fuse thread can keep running.
         @exit ||= Thread.new do
-          warn "Fuse exit thread with signame=#{signame}"
-          # On linux we need to exit before unmount,  reverse on macfuse
           Libfuse.fuse_exit(@fuse) unless mac_fuse?
 
-          warn 'Unmounting in fuse exit'
           unmount
 
-          if mac_fuse?
-            # without this sleep before exit, MacOS does not complete unmounting
-            sleep 0.2
-            Libfuse.fuse_exit(@fuse)
-          end
-          warn 'Exit thread done'
+          # without this sleep before exit, MacOS does not complete unmounting
+          sleep 0.2 if mac_fuse?
+
+          Libfuse.fuse_exit(@fuse)
+
+          # if we have created the io (ie not in native loop) then
+          @io&.close
+
           true
         end
       end
@@ -255,7 +253,7 @@ module FFI
       private
 
       def fuse_cache_timeout(remember)
-        remember ? fuse_clean_cache : 20
+        remember ? fuse_clean_cache : nil
       end
 
       def fuse_io_select(io_array, timeout)

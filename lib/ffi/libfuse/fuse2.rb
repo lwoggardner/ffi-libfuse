@@ -19,14 +19,13 @@ module FFI
     attach_function :fuse_new2, :fuse_new, [:chan, FuseArgs.by_ref, FuseOperations.by_ref, :size_t, RubyObject], :fuse
     attach_function :fuse_chan_fd, [:chan], :int
     attach_function :fuse_read_cmd, [:fuse], :cmd, blocking: false
+    # release GVL to allow callbacks to run in other threads while processing cmd
     attach_function :fuse_process_cmd, %i[fuse cmd], :void, blocking: true
-    attach_function :fuse_exited2, :fuse_exited, [:fuse], :int
-    # TODO: Theory - linux closes the FD in unmount and if we are blocking, then it retains the GVL and calls
-    #       fuse_exit. But if we have released the GVL, then the fuse_loop can receive IO select before
-    #       fuse_exit is called,  skipts processing the empty packet and then returns into IO select on the
-    #       about to close FD,  then the FD closes, then ruby calls fuse_exit, loop is left hanging in io select.
-    attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void, blocking: false
+    # allow callbacks to to run while processing unmount from exit thread
+    attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void, blocking: true
+    # allow callback to run within the native fuse loop threads
     attach_function :fuse_loop_mt2, :fuse_loop_mt, [:fuse], :int, blocking: true
+    attach_function :fuse_exited2, :fuse_exited, [:fuse], :int
 
     class << self
       # @!visibility private
