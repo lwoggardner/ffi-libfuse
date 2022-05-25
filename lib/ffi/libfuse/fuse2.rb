@@ -21,7 +21,7 @@ module FFI
     attach_function :fuse_read_cmd, [:fuse], :cmd, blocking: false
     attach_function :fuse_process_cmd, %i[fuse cmd], :void, blocking: true
     attach_function :fuse_exited2, :fuse_exited, [:fuse], :int
-    attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void, blocking: true
+    attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void, blocking: false
     attach_function :fuse_loop_mt2, :fuse_loop_mt, [:fuse], :int, blocking: true
 
     class << self

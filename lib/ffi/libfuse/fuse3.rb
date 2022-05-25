@@ -25,7 +25,7 @@ module FFI
     attach_function :fuse_loop_mt3,
                     :fuse_loop_mt, [:fuse, FuseLoopConfig.by_ref], :int, blocking: true
     attach_function :fuse_session_fd, [:session], :int
-    attach_function :fuse_session_exit, [:session], :void, blocking: false
+    attach_function :fuse_session_exit, [:session], :void
     attach_function :fuse_session_exited, [:session], :int
     attach_function :fuse_unmount3, :fuse_unmount, %i[fuse], :void, blocking: true
     attach_function :fuse_session_receive_buf, [:session, FuseBuf.by_ref], :int, blocking: false

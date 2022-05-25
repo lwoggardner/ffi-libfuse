@@ -230,12 +230,12 @@ module FFI
       # generally expected to be called from a signal handler inside the fuse loop.
       #
       # @return [Thread] the unmount thread
-      def exit(_signame = nil)
+      def exit(signame = nil)
         return unless @fuse
 
         # Unmount/exit in a separate thread so the main fuse thread can keep running.
         @exit ||= Thread.new do
-          warn 'Fuse exit thread'
+          warn "Fuse exit thread with signame=#{signame}"
           # On linux we need to exit before unmount,  reverse on macfuse
           Libfuse.fuse_exit(@fuse) unless mac_fuse?
 
