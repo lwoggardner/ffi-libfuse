@@ -48,7 +48,7 @@ module LibfuseHelper
       warn "File ops finished with status #{block_exit}"
 
       warn 'Exiting fuse'
-      fuse.exit&.join
+      fuse.exit('fuse_helper')&.join
       warn 'Exit joined'
       run_result = t.value
 
