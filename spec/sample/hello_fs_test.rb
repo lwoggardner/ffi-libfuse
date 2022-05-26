@@ -8,7 +8,9 @@ describe 'HelloFS' do
   let(:fs) { 'hello_fs.rb' }
   let(:args) { %w[] }
 
-  it '' do
+  it 'says hello
+
+' do
     act_stdout, act_stderr, status = run_sample(fs, *args) do |mnt|
       d = Pathname.new("#{mnt}")
       f = d + 'hello.txt'

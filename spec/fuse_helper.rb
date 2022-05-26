@@ -22,7 +22,7 @@ module LibfuseHelper
       # Start the fork before loading fuse (for MacOS)
       fpid = Process.fork do
         begin
-          sleep 2 # Give fuse a chance to start
+          sleep 0.5 # Give fuse a chance to start
           yield mnt
         end
       end
@@ -39,19 +39,13 @@ module LibfuseHelper
 
       # TODO: Work out why waitpid2 hangs on mac unless the process has already finished
       #       and on travis!!
-      sleep 5 if mac_fuse?
+      sleep 3 if mac_fuse?
 
-      warn "Waiting file ops"
       _pid, block_status = Process.waitpid2(fpid)
       block_exit = block_status.exitstatus
-      warn "File ops finished with status #{block_exit}"
-
-      warn 'Exiting fuse'
       fuse.exit('fuse_helper')&.join
-      warn 'Exit joined'
       run_result = t.value
 
-      warn "Fuse finished with #{run_result}"
       _(fuse).wont_be(:mounted?)
       _(block_exit).must_equal(0, 'File operations')
       _(run_result).must_equal(0, 'Fuse run')
