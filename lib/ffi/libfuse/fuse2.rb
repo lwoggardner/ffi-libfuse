@@ -18,12 +18,9 @@ module FFI
     attach_function :fuse_mount2, :fuse_mount, [:string, FuseArgs.by_ref], :chan
     attach_function :fuse_new2, :fuse_new, [:chan, FuseArgs.by_ref, FuseOperations.by_ref, :size_t, RubyObject], :fuse
     attach_function :fuse_chan_fd, [:chan], :int
-    attach_function :fuse_read_cmd, [:fuse], :cmd, blocking: false
-    # release GVL to allow callbacks to run in other threads while processing cmd
+    attach_function :fuse_read_cmd, [:fuse], :cmd, blocking: true
     attach_function :fuse_process_cmd, %i[fuse cmd], :void, blocking: true
-    # allow callbacks to to run while processing unmount from exit thread
     attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void, blocking: true
-    # allow callback to run within the native fuse loop threads
     attach_function :fuse_loop_mt2, :fuse_loop_mt, [:fuse], :int, blocking: true
     attach_function :fuse_exited2, :fuse_exited, [:fuse], :int
 

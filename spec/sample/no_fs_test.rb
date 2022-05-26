@@ -35,8 +35,11 @@ describe 'NoFS' do
     { name: 'native loop single threaded debug', args: %w[-s -d -o native], stderr: [/:single_thread=>true/,/NoFS.*readdir/,/NoFS: DEBUG enabled/] },
     { name: 'native loop multi thread foreground', args: %w[-f -o native], stderr: '' },
     { name: 'native loop single thread daemonized', args: %w[-s -o native], stderr: '' },
-  ].kw_each do |name:, args:, stderr:|
+    { name: 'native loop multi thread daemonized', args: %w[-o native], stderr: '', skip_msg: 'TODO: why does this hang?' },
+  ].kw_each do |name:, args:, stderr:, skip_msg: false|
     it name do
+      skip skip_msg if skip_msg
+
       act_stdout, act_stderr, status = run_sample(fs, *args) do |mnt|
         expect(Dir.exist?(mnt)).must_equal(true, "#{mnt} will exist")
         expect(Dir.exist?("#{mnt}/other")).must_equal(false,"#{mnt}/other won't exist")
@@ -50,10 +53,6 @@ describe 'NoFS' do
         expect(act_stderr).must_match(se,'stderr matches')
       end
     end
-  end
-
-  it 'native loop multi thread daemonized' do
-    skip 'todo: explain why this scenarios hangs - GVL?'
   end
 
 end

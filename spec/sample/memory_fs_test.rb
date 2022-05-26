@@ -32,10 +32,12 @@ describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
     { name: 'native loop single threaded foreground', args: %w[-f -s -o native]},
     { name: 'native loop multi thread foreground', args: %w[-f -o native]},
     { name: 'native loop single thread daemonized', args: %w[-s -o native]},
+    { name: 'native loop multi thread deamonized', args: %w[-o native], skip_msg: 'TODO: Why does this hang?'},
     { name: 'no_buf', args: %w[-o no_buf]},
-  ].kw_each do |name:, args:|
+  ].kw_each do |name:, args:, skip_msg: false|
     it name do
-      act_stdout, _act_stderr, status = run_sample(fs, *args) do |mnt|
+      skip skip_msg if skip_msg
+      act_stdout, act_stderr, status = run_sample(fs, *args, env: { 'MEMORY_FS_SKIP_DEFAULT_ARGS' => 'Y'}) do |mnt|
         d = Pathname.new("#{mnt}/testdir")
         f = d + 'file.txt'
         expect(d.exist?).must_equal(false,"#{d} won't exist")
@@ -69,11 +71,8 @@ describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
       end
       expect(status).must_equal(0,'status zero')
       expect(act_stdout).must_match('')
+      warn act_stderr
     end
-  end
-
-  it 'native loop multi thread daemonized' do
-    skip 'todo: explain why this scenarios hangs - GVL?'
   end
 
 end

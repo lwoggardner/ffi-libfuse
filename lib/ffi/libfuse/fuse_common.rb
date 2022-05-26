@@ -42,12 +42,7 @@ module FFI
       def run(native: false, **options)
         return false unless mounted?
 
-        if native
-          run_native(**options)
-        else
-          res = run_ruby(**options)
-          res
-        end
+        native ? run_native(**options) : run_ruby(**options)
       rescue Errno => e
         -e.errno
       rescue StandardError, ScriptError => e
@@ -75,15 +70,14 @@ module FFI
       #
       #    * clone_fd is ignored
       #    * filesystem interrupts probably can't work
-      def run_ruby(foreground: true, single_thread: true, traps: {}, **options)
+      def run_ruby(foreground: true, single_thread: true, traps: {}, remember: false, **options)
         Ackbar.trap(default_traps.merge(traps)) do |signals|
           daemonize unless foreground
 
-          if single_thread
-            fuse_loop(signals: signals, **options)
-          else
-            fuse_loop_mt(signals: signals, **options)
-          end
+          # Monitor for signals (and cache cleaning if required)
+          signals.monitor { fuse_cache_timeout(remember) }
+
+          single_thread ? fuse_loop(**options) : fuse_loop_mt(**options)
           0
         end
       end
@@ -100,16 +94,13 @@ module FFI
       #    * multi-threading will create a new ruby thread for every callback
       #    * cannot daemonize multi-threaded (hangs) TODO: Why - pthread_lock?, GVL?
       #    * cannot pass signals to the filesystem
+      #    * connot use fuse_context (because the ruby thread is not the native thread)
       #
       # @api private
       # @param [Boolean] foreground
       # @param [Boolean] single_thread
-      #
       def run_native(foreground: true, single_thread: true, **options)
-        if !single_thread && !foreground
-          warn 'Cannot run native multi-thread fuse_loop when daemonized. Using single_thread mode'
-          single_thread = true
-        end
+        raise 'Cannot run deamonized native multi-thread fuse_loop' if !single_thread && !foreground
 
         clear_default_traps
         (se = session) && Libfuse.fuse_set_signal_handlers(se)
@@ -178,21 +169,8 @@ module FFI
 
       # @api private
       # Ruby implementation of single threaded fuse loop
-      def fuse_loop(signals:, remember: false, **_options)
-        selectable = [io, signals.pr]
-        loop do
-          timeout = fuse_cache_timeout(remember)
-          ready, errors = fuse_io_select(selectable, timeout)
-
-          selectable.delete(signals.pr) if ready.include?(signals.pr) && !signals.next
-
-          break if fuse_exited?
-
-          fuse_process if ready.include?(io)
-
-          raise "fuse_loop io error #{errors}" if errors.any?
-        end
-        warn 'Fuse loop exit'
+      def fuse_loop(**_options)
+        fuse_process until fuse_exited?
       end
 
       # @api private
@@ -202,10 +180,7 @@ module FFI
       # fuse api.
       #
       # @see ThreadPool ThreadPool for the mechanism that controls creation and termination of worker threads
-      def fuse_loop_mt(signals:, max_idle_threads: 10, max_threads: nil, remember: false, **_options)
-        # Monitor for signals (and cache cleaning if required)
-
-        signals.monitor { fuse_cache_timeout(remember) }
+      def fuse_loop_mt(max_idle_threads: 10, max_threads: nil, **_options)
         ThreadPool.new(name: 'FuseThread', max_idle: max_idle_threads.to_i, max_active: max_threads&.to_i) do
           raise StopIteration if fuse_exited?
 
@@ -234,17 +209,12 @@ module FFI
 
         # Unmount/exit in a separate thread so the main fuse thread can keep running.
         @exit ||= Thread.new do
-          Libfuse.fuse_exit(@fuse) unless mac_fuse?
-
           unmount
 
           # without this sleep before exit, MacOS does not complete unmounting
           sleep 0.2 if mac_fuse?
 
           Libfuse.fuse_exit(@fuse)
-
-          # if we have created the io (ie not in native loop) then
-          @io&.close
 
           true
         end
@@ -254,10 +224,6 @@ module FFI
 
       def fuse_cache_timeout(remember)
         remember ? fuse_clean_cache : nil
-      end
-
-      def fuse_io_select(io_array, timeout)
-        (::IO.select(io_array, [], io_array, timeout) || Array.new(3)).map { |a| a || [] }
       end
 
       def session

@@ -17,8 +17,9 @@ module FFI
 
       ffi_attr_reader(*members, simple: false) do
         m = __method__
-        # If overrides are in place it is possible that the underlying memory is invalid
-        FuseContext.overrides[m] || self[m]
+
+        # Use overrides if they are available, or the default context if the underlying memory is invalid
+        FuseContext.overrides[m] || (null? ? DEFAULT_CONTEXT[m] : self[m])
       end
 
       if FUSE_VERSION < 28
@@ -66,6 +67,8 @@ module FFI
         perms & ~umask
       end
 
+      DEFAULT_CONTEXT = { uid: Process.uid, gid: Process.gid, umask: File.umask }.freeze
+
       class << self
         # @overload overrides(hash)
         #  @param[Hash<Symbol,Object|nil] hash a list of override values that will apply to this context
@@ -80,7 +83,7 @@ module FFI
           return Thread.current[:fuse_context_overrides] ||= {} unless block_given?
 
           begin
-            Thread.current[:fuse_context_overrides] = hash || { uid: Process.uid, gid: Process.gid, umask: File.umask }
+            Thread.current[:fuse_context_overrides] = hash || DEFAULT_CONTEXT
             yield
           ensure
             Thread.current[:fuse_context_overrides] = nil

@@ -70,11 +70,11 @@ module LibfuseHelper
 
   # Runs a filesystem in a separate process via Open3.capture3
   # if we daemonize then we will not capture any output
-  def run_sample(filesystem, *args)
+  def run_sample(filesystem, *args, env: {})
     safe_fuse do |mnt|
       t = Thread.new do
         Bundler.with_unbundled_env do
-          Open3.capture3('bundle', 'exec', "sample/#{filesystem}", mnt, "-ofsname=#{filesystem}", *args, binmode: true)
+          Open3.capture3(env, 'bundle', 'exec', "sample/#{filesystem}", mnt, "-ofsname=#{filesystem}", *args, binmode: true)
         end
       end
       sleep 1
