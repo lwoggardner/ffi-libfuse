@@ -106,12 +106,7 @@ module FFI
         (se = session) && Libfuse.fuse_set_signal_handlers(se)
 
         Libfuse.fuse_daemonize(foreground ? 1 : 0)
-
-        if single_thread
-          Libfuse.fuse_loop(@fuse)
-        else
-          native_fuse_loop_mt(**options)
-        end
+        single_thread ? Libfuse.fuse_loop(@fuse) : native_fuse_loop_mt(**options)
       ensure
         (se = session) && Libfuse.fuse_remove_signal_handlers(se)
       end
@@ -201,8 +196,7 @@ module FFI
       end
 
       # Starts a thread to unmount the filesystem and stop the processing loop.
-      # generally expected to be called from a signal handler inside the fuse loop.
-      #
+      # generally expected to be called from a signal handler
       # @return [Thread] the unmount thread
       def exit(_signame = nil)
         return unless @fuse
