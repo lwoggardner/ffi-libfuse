@@ -15,10 +15,14 @@ end
 desc 'Sample Filesystem Tests'
 Rake::TestTask.new(:sample_test) do |t|
   t.test_files = FileList['spec/sample/*_test.rb']
+  t.warning = false
 end
 
 desc 'Run all tests'
 task test: %i[unit_test sample_test]
+
+require 'bundler/audit/task'
+Bundler::Audit::Task.new
 
 require 'yard'
 YARD::Rake::YardocTask.new do |t|
@@ -49,7 +53,7 @@ end
 desc 'Regenerate documentation'
 task doc: %i[samples yard]
 
-task default: %i[rubocop test doc]
+task default: %i[rubocop bundle:audit:check test doc]
 
 RELEASE_BRANCH = 'main'
 desc 'Tag and bump to trigger release to rubygems'
