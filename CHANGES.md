@@ -8,7 +8,7 @@
 
 #### New Features
 * Implemented helper filesystems in {FFI::Libfuse::Filesystem}
-* macFuse support
 
 #### Fixes
-Lots
+* Test on OSX with macFuse
+* Lots
