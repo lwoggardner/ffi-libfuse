@@ -27,7 +27,7 @@ module FFI
     attach_function :fuse_session_fd, [:session], :int
     attach_function :fuse_session_exit, [:session], :void
     attach_function :fuse_session_exited, [:session], :int
-    attach_function :fuse_unmount3, :fuse_unmount, %i[fuse], :void
+    attach_function :fuse_unmount3, :fuse_unmount, %i[fuse], :void, blocking: true
     attach_function :fuse_session_receive_buf, [:session, FuseBuf.by_ref], :int, blocking: true
     attach_function :fuse_session_process_buf, [:session, FuseBuf.by_ref], :void, blocking: true
 
@@ -101,7 +101,7 @@ module FFI
 
       # Have we requested an unmount (note not actually checking if OS sees the fs as mounted)
       def mounted?
-        (se = session) && Libfuse.fuse_session_exited(se).zero?
+        session && !fuse_exited?
       end
 
       def initialize(mountpoint, args, operations, private_data)
@@ -124,19 +124,19 @@ module FFI
         ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse))
       end
 
-      def process
-        buf = Thread.current[:fuse_buffer] ||= FuseBuf.new
-        se = Thread.current[:fuse_session] ||= session
+      def fuse_exited?
+        !Libfuse.fuse_session_exited(session).zero?
+      end
 
+      def fuse_process
+        se = session
+        buf = Thread.current[:fuse_buffer] ||= FuseBuf.new
         res = Libfuse.fuse_session_receive_buf(se, buf)
 
-        # errors, or exiting
-        return false if res.negative?
+        return false unless res.positive?
 
-        Libfuse.fuse_session_process_buf(se, buf) if res.positive?
-
-        # return true unless fuse has exited.
-        Libfuse.fuse_session_exited(se).zero?
+        Libfuse.fuse_session_process_buf(se, buf)
+        true
       end
 
       # [IO] /dev/fuse file descriptor for use with IO.select

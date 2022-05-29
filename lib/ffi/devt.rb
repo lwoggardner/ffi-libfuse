@@ -26,5 +26,28 @@ module FFI
     #  @param [Integer] dev
     #  @return [Integer] the minor component of dev
     attach_function :minor, "#{prefix}minor".to_sym, [:int], :int
+  rescue FFI::NotFoundError
+    case Platform::NAME
+    when 'x86_64-darwin'
+      # From https://github.com/golang/go/issues/8106 these functions are not defined on Darwin.
+      class << self
+        # define	major(x)	((int32_t)(((u_int32_t)(x) >> 24) & 0xff))
+        def major(dev)
+          (dev >> 24) & 0xff
+        end
+
+        # define	minor(x)	((int32_t)((x) & 0xffffff))
+        def minor(dev)
+          (dev & 0xffffff)
+        end
+
+        # define	makedev(x,y) ((dev_t)(((x) << 24) | (y)))
+        def makedev(major, minor)
+          (major << 24) | minor
+        end
+      end
+    else
+      raise
+    end
   end
 end

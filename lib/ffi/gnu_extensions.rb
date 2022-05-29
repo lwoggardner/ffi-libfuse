@@ -27,7 +27,7 @@ module FFI
   module GNUExtensions
     if FFI::Platform::IS_GNU
       extend FFI::Library
-      ffi_lib 'libdl'
+      ffi_lib(%w[libdl.so libdl.so.2].flat_map { |l| [l, "#{FFI::Platform::NAME}-gnu/#{l}"] })
 
       # @!method dlopen(library,type)
       #   @return [FFI::Pointer] library address, possibly NULL

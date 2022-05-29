@@ -64,6 +64,14 @@ class MockFS
     mock.getattr(path, stat, ffi)
   end
 
+  # ignore OS generated calls (on MacOs)
+  def statfs(path, statvfs)
+    return 0 if path == '/'
+    return Errno::ENOENT unless test_path?(path)
+
+    mock.statfs(path,statvfs)
+  end
+
   def expect(*args, &blk)
     mock.expect(*args, &blk)
   end
