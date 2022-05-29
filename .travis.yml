@@ -4,6 +4,7 @@ jobs:
     osx_image: xcode13.2
     env: FUSE_PKG=macfuse
     rvm: 2.7.6
+    script: bundle exec rake sample_test
   - stage: Deploy
     script: skip
     before_install: []
