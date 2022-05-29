@@ -1,9 +1,9 @@
 jobs:
   include:
   - os: osx
-    osx_image: xcode9.2
+    osx_image: xcode13.2
     env: FUSE_PKG=macfuse
-    rvm: 2.7.1
+    rvm: 2.7.6
     script: bundle exec rake sample_test
   - stage: Deploy
     script: skip
