@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'fuse_version'
+require 'io/wait'
 
 module FFI
   module Libfuse
@@ -28,15 +29,15 @@ module FFI
       end
 
       # @param [Hash<Symbol|String|Integer,String|Proc>] traps
-      #   Map of signal or signo to signal handler as per Signal.trap
+      #   Map of signal or signo to signal handler as per {::Signal.trap}
       # @param [Boolean] force
-      #   If not set traps that are not currently set to 'DEFAULT' will be ignored
+      #   Unless set, only installs traps currently set to 'DEFAULT'.
       def initialize(traps, force: false, signal: Signal)
         @signal = signal
         @traps = traps.transform_keys { |k| signame(k) }
         @pr, @pw = ::IO.pipe
         @monitor = nil
-        @restore = @traps.map { |(sig, handler)| [sig, trap(sig, handler, force: force)] }.to_h
+        @restore = @traps.to_h { |sig, handler| [sig, trap(sig, handler, force: force)] }
       end
 
       # Handle the next available signal on the pipe (without blocking)
@@ -72,11 +73,8 @@ module FFI
         @monitor ||= Thread.new do
           Thread.current.name = name
           loop do
-            timeout = block_given? ? yield : nil
-
-            ready, _ignore_writable, _errors = ::IO.select([@pr], [], [], timeout)
-
-            break if ready&.include?(@pr) && !self.next
+            @pr.wait_readable(block_given? ? yield : nil)
+            break unless self.next
           end
         end
       end
