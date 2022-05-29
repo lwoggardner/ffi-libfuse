@@ -55,6 +55,13 @@ task doc: %i[samples yard]
 
 task default: %i[rubocop bundle:audit:check test doc]
 
+# RELEASING
+# Branch prefixed with rc will create pre-release,  main is the actual release
+# Install gem-release gem
+# Ensure no commits/pushes pending
+# Ensure travis build has passed
+# rake release  to check,  rake release --no-verbose
+
 RELEASE_BRANCH = 'main'
 desc 'Tag and bump to trigger release to rubygems'
 task :release, [:options] => %i[clobber default] do |_t, args|

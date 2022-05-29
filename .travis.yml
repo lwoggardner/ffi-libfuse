@@ -1,5 +1,7 @@
 jobs:
   include:
+  - os: osx
+    osx_image: xcode13.3
   - stage: Deploy
     script: skip
     before_install: []
@@ -29,20 +31,11 @@ language: ruby
 dist: focal
 rvm:
 - '2.7'
-end:
+env:
 - FUSE_PKG=fuse LIBFUSE=libfuse.so.2
 - FUSE_PKG=fuse3 LIBFUSE=libfuse3.so.3
 before_install:
-- sudo apt-get update -y
-- sudo apt-get install -qq pkg-config ${FUSE_PKG} libffi-dev gcc make
-- sudo modprobe fuse
-- sudo chmod 666 /dev/fuse
-- sudo chown root:$USER /etc/fuse.conf
-- cat /etc/fuse.conf
-- ls -l /etc/fuse.conf
-- ls -l /dev/fuse
-- yes | gem update --system -N --force
-- gem install bundler
+- travis/pre_install_${TRAVIS_OS_NAME}.sh
 script:
 - bundle exec rake
 cache:
