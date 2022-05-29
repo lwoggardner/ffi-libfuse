@@ -2,6 +2,8 @@ jobs:
   include:
   - os: osx
     osx_image: xcode13.3
+    env: FUSE_PKG=macfuse
+    rvm: 2.7.0
   - stage: Deploy
     script: skip
     before_install: []

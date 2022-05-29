@@ -1,4 +1,4 @@
 #!/bin/sh
 
-brew install --cask macfuse
+brew install --cask $FUSE_PKG
 
