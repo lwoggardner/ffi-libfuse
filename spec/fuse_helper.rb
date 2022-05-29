@@ -17,6 +17,7 @@ module LibfuseHelper
 
     # ignore MacOS special files
     args << '-onoappledouble,noapplexattr' if mac_fuse?
+    args << '-d'
     safe_fuse do |mnt|
 
       # Start the fork before loading fuse (for MacOS)
