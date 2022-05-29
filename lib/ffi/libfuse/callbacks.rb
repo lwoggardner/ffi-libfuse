@@ -37,7 +37,7 @@ module FFI
 
       def initialize_callbacks(callbacks, delegate:, wrappers: [])
         callbacks.select { |m| respond_to_callback?(m, delegate) }.each do |m|
-          register(m, wrappers) { |*f_args| delegate.send(m, *f_args) }
+          register(m, wrappers) { |*f_args| delegate.public_send(m, *f_args) }
         end
       end
 

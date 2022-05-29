@@ -14,14 +14,27 @@ module FFI
       # Special nsec value representing a request to omit setting this time - see utimensat(2)
       UTIME_OMIT = (1 << 30) - 2
 
-      # A fixed TimeSpec representing the current time
-      def self.now
-        @now ||= new.set_time(0, UTIME_NOW)
-      end
+      class << self
+        # A fixed TimeSpec representing the current time
+        def now
+          @now ||= new.set_time(0, UTIME_NOW)
+        end
 
-      # A fixed TimeSpec representing a request to omit setting this time
-      def self.omit
-        @omit ||= new.set_time(0, UTIME_OMIT)
+        # A fixed TimeSpec representing a request to omit setting this time
+        def omit
+          @omit ||= new.set_time(0, UTIME_OMIT)
+        end
+
+        # @param [Array<TimeSpec>] times
+        # @param [Integer] size
+        # @return [Array<TimeSpec>] list of times filled out to size with TimeSpec.now if times was empty,
+        #   otherwise with TimeSpec.omit
+        def fill_times(times, size = times.size)
+          return times unless times.size < size
+          return Array.new(size, now) if times.empty?
+
+          times.dup.fill(omit, times.size..size - times.size) if times.size < size
+        end
       end
 
       layout(
@@ -45,15 +58,14 @@ module FFI
 
       # @overload set_time(time)
       #  @param [Time] time
-      #  @return [TimeSpec] self
+      #  @return [self]
       # @overload set_time(sec,nsec=0)
       #  @param [Integer] sec number of (nano/micro)seconds from epoch, precision depending on nsec
       #  @param [Symbol|Integer] nsec
       #   - :nsec to treat sec as number of nanoseconds since epoch
       #   - :usec to treat sec as number of microseconds since epoch
       #   - Integer to treat sec as number of seconds since epoch, and nsec as additional nanoseconds
-      #
-      #  @return [TimeSpec] self
+      #  @return [self]
       def set_time(sec, nsec = 0)
         return set_time(sec.to_i, sec.nsec) if sec.is_a?(Time)
 
@@ -95,6 +107,10 @@ module FFI
         Time.at(sec, nsec, :nsec, in: 0).utc
       end
 
+      def to_s(now = nil)
+        time(now).to_s
+      end
+
       # Convert to Integer
       # @param [Time|nil] now
       #   optional value to use if {now?} is true.  If not set then Time.now will be used
@@ -104,7 +120,7 @@ module FFI
         return nil if omit?
 
         t = now? ? (now || Time.now) : self
-        t.tv_sec * 10**9 + t.tv_nsec
+        (t.tv_sec * (10**9)) + t.tv_nsec
       end
 
       # Convert to Float
@@ -116,7 +132,7 @@ module FFI
         return nil if omit?
 
         t = now? ? (now || Time.now) : self
-        t.tv_sec.to_f + t.tv_nsec.to_f / (10**9)
+        t.tv_sec.to_f + (t.tv_nsec.to_f / (10**9))
       end
 
       # @!visibility private

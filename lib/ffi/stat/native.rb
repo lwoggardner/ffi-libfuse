@@ -17,16 +17,33 @@ module FFI
                :st_mode,    :mode_t,
                :st_uid,     :uid_t,
                :st_gid,     :gid_t,
-               :__pad0,     :int,
+               :__pad0,     :uint,
                :st_rdev,    :dev_t,
                :st_size,    :off_t,
                :st_blksize, :blksize_t,
                :st_blocks,  :blkcnt_t,
                :st_atimespec, TimeSpec,
                :st_mtimespec, TimeSpec,
-               :st_ctimespec, TimeSpec
+               :st_ctimespec, TimeSpec,
+               :unused, [:long, 3]
 
-      when 'x65_64-darwin'
+        [['', :string], ['l', :string], ['f', :int]].each do |(prefix, ftype)|
+          native_func = "native_#{prefix}stat".to_sym
+          lib_func = "#{prefix}stat".to_sym
+          begin
+            ::FFI::Stat.attach_function native_func, lib_func, [ftype, by_ref], :int
+          rescue FFI::NotFoundError
+            # gLibc 2.31 (Ubuntu focal) does not export these functions, it maps them to __xstat variants
+            native_xfunc = "native_#{prefix}xstat".to_sym
+            lib_xfunc = "__#{prefix}xstat".to_sym
+            ::FFI::Stat.attach_function native_xfunc, lib_xfunc, [:int, ftype, by_ref], :int
+            # 1 is 64 bit versions of struct stat,  3 is 32 bit
+            ::FFI::Stat.define_singleton_method(native_func) { |file, buf| send(native_xfunc, 1, file, buf) }
+          end
+        end
+
+      when 'x86_64-darwin', 'aarch64-darwin'
+        #  man stat - this is stat with 64 bit inodes.
         layout :st_dev,       :dev_t,
                :st_ino,       :uint32,
                :st_mode,      :mode_t,

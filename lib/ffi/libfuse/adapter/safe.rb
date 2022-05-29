@@ -48,7 +48,7 @@ module FFI
           -e.errno
         rescue StandardError, ScriptError => e
           # rubocop:disable Layout/LineLength
-          warn "FFI::libfuse error in callback #{fuse_method}: #{e.class.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+          warn ["FFI::Libfuse error in #{fuse_method}", *e.backtrace.reverse, "#{e.class.name}:#{e.message}"].join("\n\t")
           # rubocop:enable Layout/LineLength
           -Errno::ENOTRECOVERABLE::Errno
         end

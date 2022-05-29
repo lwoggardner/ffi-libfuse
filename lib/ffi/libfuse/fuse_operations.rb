@@ -12,19 +12,24 @@ require_relative '../flock'
 require_relative 'thread_pool'
 require_relative '../stat'
 require_relative '../struct_array'
+require_relative '../encoding'
 require_relative 'fuse_callbacks'
 
 module FFI
   # Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)
   module Libfuse
+    # All paths are encoded in ruby's view of the filesystem encoding
+    typedef Encoding.for('filesystem'), :fs_string
+
     # typedef int (*fuse_fill_dir_t) (void *buf, const char *name, const struct stat *stbuf, off_t off);
-    fill_dir_t_args = [:pointer, :string, Stat.by_ref, :off_t]
+    fill_dir_t_args = [:pointer, :fs_string, Stat.by_ref, :off_t]
     if FUSE_MAJOR_VERSION > 2
       enum :fuse_readdir_flags, [:fuse_readdir_plus, (1 << 0)]
       enum :fuse_fill_dir_flags, [:fuse_fill_dir_plus, (1 << 1)]
       fill_dir_t_args << :fuse_fill_dir_flags
     end
 
+    bitmask :fuse_ioctl_flags, %i[compat unrestricted retry dir]
     bitmask :lock_op, [:lock_sh, 0, :lock_ex, 2, :lock_nb, 4, :lock_un, 8]
     bitmask :falloc_mode, %i[keep_size punch_hole no_hide_stale collapse_range zero_range insert_range unshare_range]
     bitmask :flags_mask, %i[nullpath_ok nopath utime_omit_ok] if FUSE_MAJOR_VERSION < 3
@@ -33,7 +38,7 @@ module FFI
 
     # The file system operations as specified in libfuse.
     #
-    # All Callback and Configuration methods are optional, but some are essential for a useful filesystem
+    # All Callback methods are optional, but some are essential for a useful filesystem
     # e.g. {getattr},{readdir}
     #
     # Almost all callback operations take a path which can be of any length and will return 0 for success, or raise a
@@ -144,7 +149,7 @@ module FFI
       #  @return [Integer] 0 for success or -ve errno
 
       # int (*symlink) (const char *, const char *);
-      op[:symlink] = [:string]
+      op[:symlink] = [:fs_string]
 
       # @!method rename(from_path,to_path)
       #  @abstract
@@ -155,7 +160,7 @@ module FFI
       #  @return [Integer] 0 for success or -ve errno
 
       # int (*rename) (const char *, const char *);
-      op[:rename] = [:string]
+      op[:rename] = [:fs_string]
 
       # @!method link(path,target)
       #  @abstract
@@ -166,7 +171,7 @@ module FFI
       #  @return [Integer] 0 for success or -ve errno
 
       # int (*link) (const char *, const char *);
-      op[:link] = [:string]
+      op[:link] = [:fs_string]
 
       # @!method chmod(path,mode,fuse_file_info=nil)
       #  @abstract
@@ -660,18 +665,21 @@ module FFI
         #  @param [Integer] cmd
         #  @param [FFI::Pointer] arg
         #  @param [FuseFileInfo] fuse_file_info
-        #  @param [Integer] flags
+        #  @param [Array<Symbol>] flags
+        #
+        #    - :compat       32bit compat ioctl on 64bit machine
+        #    - :unrestricted not restricted to well-formed ioctls, retry allowed (lowlevel fuse)
+        #    - :retry        retry with new iovecs (lowlevel fuse)
+        #    - :dir          is a directory file handle
+        #
         #  @param [FFI::Pointer] data
         #
-        #  flags will have FUSE_IOCTL_COMPAT set for 32bit ioctls in 64bit environment.  The size and direction of data
-        #  is determined by _IOC_*() decoding of cmd.  For _IOC_NONE, data will be NULL, for _IOC_WRITE data is out
-        #  area, for _IOC_READ in area and if both are set in/out area.  In all non-NULL cases, the area is of
-        #  _IOC_SIZE(cmd) bytes.
-        #
-        #  If flags has FUSE_IOCTL_DIR then the fuse_file_info refers to a directory file handle.
+        #  The size and direction of data is determined by _IOC_*() decoding of cmd.  For _IOC_NONE, data will be NULL,
+        #  for _IOC_WRITE data is out area, for _IOC_READ in area and if both are set in/out area.  In all non-NULL
+        #  cases, the area is of _IOC_SIZE(cmd) bytes.
 
         # int (*ioctl) (const char *, int cmd, void *arg, struct fuse_file_info *, unsigned int flags, void *data);
-        op[:ioctl] = [:int, :pointer, FuseFileInfo.by_ref, :uint, :pointer]
+        op[:ioctl] = [:int, :pointer, FuseFileInfo.by_ref, :fuse_ioctl_flags, :pointer]
 
         # @!method poll(path,fuse_file_info,ph,reventsp)
         #  @abstract
@@ -697,8 +705,9 @@ module FFI
         #  @abstract
         #  Write contents of buffer to an open file
         #
-        #  Similar to the write() method, but data is supplied in a generic buffer.  Use fuse_buf_copy() to transfer
-        #  data to the destination.
+        #  Similar to the write() method, but data is supplied in a generic buffer.
+        #  Use {FuseBufVec#copy_to_fd} to copy data to an open file descriptor, or {FuseBufVec#copy_to_str} to extract
+        #  string data from the buffer
         #
         #  @param [String] path
         #  @param [FuseBufVec] buf
@@ -804,8 +813,8 @@ module FFI
           # );
           op[:copy_file_range] =
             callback [
-              :string, FuseFileInfo.by_ref, :off_t,
-              :string, FuseFileInfo.by_ref, :off_t,
+              :fs_string, FuseFileInfo.by_ref, :off_t,
+              :fs_string, FuseFileInfo.by_ref, :off_t,
               :size_t, :int
             ], :ssize_t
 
@@ -820,7 +829,7 @@ module FFI
           #  @see lseek(2)
 
           # off_t (*lseek) (const char *, off_t off, int whence, struct fuse_file_info *);
-          op[:lseek] = callback [:string, :off_t, Flock::Enums::SeekWhence, FuseFileInfo.by_ref], :off_t
+          op[:lseek] = callback [:fs_string, :off_t, Flock::Enums::SeekWhence, FuseFileInfo.by_ref], :off_t
         end
       end
 
@@ -829,7 +838,7 @@ module FFI
       layout_data = op.transform_values do |v|
         if v.is_a?(Array) && !v.last.is_a?(Integer)
           # A typical fuse callback
-          callback([:string] + v, :int)
+          callback([:fs_string] + v, :int)
         else
           v
         end
@@ -864,6 +873,21 @@ module FFI
 
         fuse_flags.concat(delegate.fuse_flags) if delegate.respond_to?(:fuse_flags)
         send(:[]=, :flags, fuse_flags.uniq)
+      end
+
+      # @!visibility private
+      def fuse_callbacks
+        self.class.fuse_callbacks
+      end
+
+      # @return [Set<Symbol>] list of callback methods
+      def self.fuse_callbacks
+        @fuse_callbacks ||= Set.new(members - [:flags])
+      end
+
+      # @return [Set<Symbol>] list of path callback methods
+      def self.path_callbacks
+        @path_callbacks ||= fuse_callbacks - %i[init destroy]
       end
     end
   end

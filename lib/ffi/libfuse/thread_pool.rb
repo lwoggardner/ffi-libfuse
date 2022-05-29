@@ -136,7 +136,7 @@ module FFI
       def idle_limit_exceeded?
         return false unless @max_idle
 
-        synchronize { (@size - @busy - @idle_death.size - 1) > @max_idle && @idle_death << Thread.current }
+        synchronize { (@size - @busy - @idle_death.size - 1) > @max_idle && (@idle_death << Thread.current) }
       end
 
       def synchronize(&block)

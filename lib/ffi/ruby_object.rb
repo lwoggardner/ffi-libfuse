@@ -74,7 +74,7 @@ module FFI
       end
 
       def finalizer(*keys)
-        proc { keys.each { cache.delete(key) } }
+        proc { keys.each { |k| cache.delete(k) } }
       end
 
       def store(obj)

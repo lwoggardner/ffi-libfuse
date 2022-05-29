@@ -31,17 +31,13 @@ module FFI
 
       def initialize_callbacks(delegate:, wrappers: [])
         wrappers = delegate.fuse_wrappers(*wrappers) if delegate.respond_to?(:fuse_wrappers)
-        super(callback_members, delegate: delegate, wrappers: wrappers)
+        super(fuse_callbacks, delegate: delegate, wrappers: wrappers)
       end
 
       def respond_to_callback?(method, delegate)
         return delegate.fuse_respond_to?(method) if delegate.respond_to?(:fuse_respond_to?)
 
         super
-      end
-
-      def callback_members
-        members - [:flags]
       end
     end
   end

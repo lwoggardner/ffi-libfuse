@@ -11,7 +11,7 @@ module FFI
     #
     #    These will implement {FuseOperations#fuse_wrappers} to add the proc which can then...
     #
-    #    * prepend additional arguments - eg. ({Context})
+    #    * populate thread local information - eg. ({Context})
     #    * wrap common arguments - eg. ({Pathname})
     #    * handle return values/exceptions - eg. ({Safe})
     #    * or just wrap the underlying block - eg. ({Debug})
@@ -70,7 +70,6 @@ module FFI
 end
 
 require_relative 'adapter/context'
-require_relative 'adapter/thread_local_context'
 require_relative 'adapter/debug'
 require_relative 'adapter/ruby'
 require_relative 'adapter/interrupt'
