@@ -5,6 +5,16 @@ require_relative 'accessors'
 
 module FFI
   # Helper to wrap structs with ugly names and attribute clashes with FFI::Struct (eg size)
+  #
+  # @example
+  #  class MyStruct
+  #    include FFI::StructWrapper
+  #    native_struct(MyNativeStruct)
+  #
+  #    #!@attribute [rw] field
+  #    ffi_attr_accessor :field
+  #  end
+  #
   module StructWrapper
     # @!visibility private
     class ByReference < StructByReference
@@ -78,8 +88,9 @@ module FFI
 
     # @!parse extend ClassMethods
     # @!parse include Accessors
+    # @!parse extend Accessors::ClassMethods
 
-    # @!visibility private
+    # @return [FFI::Struct] the underlying native struct
     attr_reader :native
 
     # @!visibility private
@@ -95,6 +106,16 @@ module FFI
     # Set attribute
     def []=(member_or_attr, val)
       @native[self.class.ffi_attr_writers.fetch(member_or_attr, member_or_attr)] = val
+    end
+
+    # Pass unimplemented methods on to {#native} underlying struct
+    def method_missing(method, *args)
+      @native.send(method, *args)
+    end
+
+    # @!visibility private
+    def respond_to_missing?(method, private = false)
+      @native.respond_to?(method, private)
     end
   end
 end

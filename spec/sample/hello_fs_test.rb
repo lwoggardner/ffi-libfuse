@@ -3,13 +3,15 @@
 require_relative '../fuse_helper'
 
 describe 'HelloFS' do
-  include LibfuseHelper
+  include FFI::Libfuse::TestHelper
 
-  let(:fs) { 'hello_fs.rb' }
+  let(:fs) { 'sample/hello_fs.rb' }
   let(:args) { %w[] }
 
-  it '' do
-    act_stdout, act_stderr, status = run_sample(fs, *args) do |mnt|
+  it 'says hello
+
+' do
+    act_stdout, act_stderr, status = run_filesystem(fs, *args) do |mnt|
       d = Pathname.new("#{mnt}")
       f = d + 'hello.txt'
 

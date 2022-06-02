@@ -6,6 +6,7 @@ Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)
 
   * Ruby 2.7
   * Linux: libfuse (Fuse2) or libfuse3 (Fuse3)
+  * MacOS: macFuse (https://osxfuse.github.io/)
 
 ## Building a FUSE Filesystem
 
@@ -17,11 +18,11 @@ gem install ffi-libfuse
 
 Create a filesystem class
 
-* recommend including {FFI::Libfuse::Adapter::Ruby} to add some ruby sugar and safety to the native FUSE Callbacks
-* recommend including {FFI::Libfuse::Adapter::Fuse2Compat} for compatibility with Fuse2
-* implement {FFI::Libfuse::Main} configuration methods, eg to parse options with {FFI::Libfuse::FuseArgs#parse!}
 * implement FUSE callbacks for filesystem operations satisfying {FFI::Libfuse::FuseOperations}
-  (as altered by any included adapters from {FFI::Libfuse::Adapter)
+* recommend including {FFI::Libfuse::Adapter::Ruby} to add some ruby sugar and safety to the native FUSE Callbacks
+* recommend including {FFI::Libfuse::Adapter::Fuse2Compat} for compatibility with Fuse2/macFuse
+* implement {FFI::Libfuse::Main} configuration methods, eg to parse custom options with {FFI::Libfuse::FuseArgs#parse!}
+  (as altered by any included adapters from {FFI::Libfuse::Adapter})
 * Provide an entrypoint to start the filesystem using {FFI::Libfuse::Main.fuse_main}
 
 {FFI::Libfuse::Filesystem} contains additional classes and modules to help build and compose filesystems 
@@ -112,8 +113,10 @@ Alternatively filesystems written against Fuse2 API can include {FFI::Libfuse::A
 
 ## MACFuse
 
-[macFUSE](https://osxfuse.github.io/) (previously OSXFuse) supports a superset of the Fuse2 api so FFI::Libfuse is
-intended to work in that environment.
+[macFUSE](https://osxfuse.github.io/) (previously OSXFuse) supports a superset of the Fuse2 api
+
+**TODO** Implement macFuse extensions
+
 
 # Under the hood
 
@@ -166,14 +169,13 @@ end
 [this discussion](http://fuse.996288.n3.nabble.com/GetAttr-calls-being-serialised-td11741.html)
 on the serialisation of `#getattr` and `#readdir` calls.
 
+**TODO**  Build an example filesystem that makes use of multi-threading
+
 
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/lwoggardner/ffi-libfuse. 
 
-### TODO
-  * Build a filesystem that can make use of multi-threaded operations
-  * Test with macFUSE
 
 ## License
 

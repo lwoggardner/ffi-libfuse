@@ -1,5 +1,11 @@
 jobs:
   include:
+# Macfuse kernel extension is not enabled on travis :-(
+# See https://travis-ci.community/t/allow-disabling-sip-on-macos-10-13/3253 etc
+#  - os: osx
+#    osx_image: xcode12.2
+#    env: FUSE_PKG=macfuse
+#    rvm: 2.7.6
   - stage: Deploy
     script: skip
     before_install: []
@@ -28,19 +34,13 @@ jobs:
 language: ruby
 dist: focal
 rvm:
-- '2.6'
 - '2.7'
-end:
+- '3.2'
+env:
 - FUSE_PKG=fuse LIBFUSE=libfuse.so.2
 - FUSE_PKG=fuse3 LIBFUSE=libfuse3.so.3
 before_install:
-- sudo apt-get update -y
-- sudo apt-get install -qq pkg-config ${FUSE_PKG}
-- sudo modprobe fuse
-- sudo chmod 666 /dev/fuse
-- sudo chown root:$USER /etc/fuse.conf
-- yes | gem update --system -N --force
-- gem install bundler
+- travis/pre_install_${TRAVIS_OS_NAME}.sh
 script:
 - bundle exec rake
 cache:

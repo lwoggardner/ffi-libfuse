@@ -14,11 +14,13 @@ module FFI
       # Create a fuse_args struct from command line options
       # @param [Array<String>] argv command line args
       #
-      #   first arg is expected to be program name
+      #   first arg is expected to be program name and is ignored by fuse_opt_parse
+      #   it is handled specially only in fuse_parse_cmdline (ie no subtype is given)
       # @return [FuseArgs]
       # @example
       #  FFI::Libfuse::FuseArgs.create($0,*ARGV)
       def self.create(*argv)
+        argv.unshift('ffi-libfuse') if argv.size.zero? || argv[0].start_with?('-')
         new.fill(*argv)
       end
 
@@ -162,7 +164,7 @@ module FFI
               [opt, arg[opt.rstrip.length..].lstrip]
             else
               warn "FuseOptProc error - Cannot match option for #{arg}"
-              next -1
+              next FUSE_OPT_PROC_RETURN.fetch(:error)
             end
 
           safe_opt_proc(key: key, value: value, match: match, data: data, out: out, &block)

@@ -33,7 +33,10 @@ module FFI
     bitmask :lock_op, [:lock_sh, 0, :lock_ex, 2, :lock_nb, 4, :lock_un, 8]
     bitmask :falloc_mode, %i[keep_size punch_hole no_hide_stale collapse_range zero_range insert_range unshare_range]
     bitmask :flags_mask, %i[nullpath_ok nopath utime_omit_ok] if FUSE_MAJOR_VERSION < 3
-    enum :xattr, [:xattr_create, 1, :xattr_replace]
+
+    # @!visibility private
+    XAttr = enum :xattr, [:xattr_create, 1, :xattr_replace]
+
     callback :fill_dir_t, fill_dir_t_args, :int
 
     # The file system operations as specified in libfuse.
@@ -46,6 +49,14 @@ module FFI
     #
     class FuseOperations < FFI::Struct
       include FuseCallbacks
+
+      # Callbacks that are expected to return meaningful positive integers
+      MEANINGFUL_RETURN = %i[read write write_buf lseek copy_file_range getxattr listxattr].freeze
+
+      # @return [Boolean] true if fuse_callback expects a meaningful integer return
+      def self.meaningful_return?(fuse_callback)
+        MEANINGFUL_RETURN.include?(fuse_callback)
+      end
 
       # Container to dynamically build up the operations layout which is dependent on the loaded libfuse version
       op = {}
@@ -213,6 +224,7 @@ module FFI
       op[:truncate] = [:off_t]
       op[:truncate] << FuseFileInfo.by_ref if FUSE_MAJOR_VERSION >= 3
 
+      # Not directly implemented see utimens
       # int (*utime) (const char *, struct utimbuf *);
       op[:utime] = [:pointer] if FUSE_MAJOR_VERSION < 3
 
@@ -568,7 +580,7 @@ module FFI
         #  @param [String] path
         #  @param [FuseFileInfo] fuse_file_info
         #    For checking lock ownership, the 'fuse_file_info->owner' argument must be used.
-        #  @param [Symbol] cmd either :f_getlck, :f_setlck or :f_setlkw.
+        #  @param [Symbol] cmd either :getlck, :setlck or :setlkw.
         #  @param [Flock] flock
         #    For the meaning of fields in 'struct flock' see the man page for fcntl(2).  The whence field will always
         #    be set to :seek_set.

@@ -47,11 +47,12 @@ module FFI
         # @return [Integer] block size for statvfs
         attr_accessor :block_size
 
-        def initialize(max_space: 0, max_nodes: 0)
+        def initialize(max_space: 0, max_nodes: 0, block_size: 1024)
           @nodes = 0
           @space = 0
           @max_space = max_space
           @max_nodes = max_nodes
+          @block_size = block_size
         end
 
         # Adjust accumlated statistics

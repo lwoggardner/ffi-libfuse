@@ -1,15 +1,19 @@
 # frozen_string_literal: true
 
 require_relative 'struct_wrapper'
-require_relative 'stat/native'
 require_relative 'stat/constants'
 
 module FFI
   # Ruby representation of stat.h struct
   class Stat
-    # We need to be a StructWrapper because of clash with #size
+    # Use a StructWrapper because of clash with #size and the ability to attach functions
     include StructWrapper
 
+    extend FFI::Library
+    ffi_lib FFI::Library::LIBC
+
+    # stat/native will attach functions to Stat
+    require_relative 'stat/native'
     native_struct(Native)
 
     # @!attribute [rw] mode
@@ -70,7 +74,7 @@ module FFI
     # @param [Integer] gid
     # @param [Hash] args additional system specific stat fields
     # @return [self]
-    def dir(mode:, nlink: 1, uid: Process.uid, gid: Process.gid, **args)
+    def dir(mode:, nlink: 3, uid: Process.uid, gid: Process.gid, **args)
       mode = ((S_IFDIR & S_IFMT) | (mode & 0o777))
       fill(mode: mode, uid: uid, gid: gid, nlink: nlink, **args)
     end
@@ -88,37 +92,31 @@ module FFI
       lstat(file.to_s)
     end
 
+    # @!method stat(path)
     # Fill attributes from file, following links
-    # @param [:to_s] file a file path
+    # @param [:to_s] path a file path
     # @raise [SystemCallError] on error
     # @return [self]
-    def stat(file)
-      res = self.class.native_stat(file.to_s, self)
-      raise SystemCallError.new('', FFI::LastError.error) unless res.zero?
 
-      self
-    end
-
+    # @!method lstat(path)
     # Fill attributes from file path, without following links
-    # @param [:to_s] file
+    # @param [:to_s] path
     # @raise [SystemCallError] on error
     # @return [self]
-    def lstat(file)
-      res = self.class.native_lstat(file.to_s, self)
-      raise SystemCallError.new('', FFI::LastError.error) unless res.zero?
 
-      self
-    end
-
+    # @!method fstat(fileno)
     # Fill attributes from file descriptor
-    # @param [Integer] fileno file descriptor
+    # @param [:to_i] fileno file descriptor
     # @raise [SystemCallError] on error
     # @return [self]
-    def fstat(fileno)
-      res = self.class.native_fstat(fileno, self)
-      raise SystemCallError.new('', FFI::LastError.error) unless res.zero?
 
-      self
+    %i[stat lstat fstat].each do |m|
+      define_method(m) do |file|
+        res = self.class.send("native_#{m}", (m == :fstat ? file.to_i : file.to_s), native)
+        raise SystemCallError.new('', FFI::LastError.error) unless res.zero?
+
+        self
+      end
     end
 
     # Apply permissions mask to mode
@@ -149,13 +147,6 @@ module FFI
       mode & S_ISVTX != 0
     end
 
-    extend FFI::Library
-    ffi_lib FFI::Library::LIBC
-
-    attach_function :native_stat, :stat, [:string, by_ref], :int
-    attach_function :native_lstat, :lstat, [:string, by_ref], :int
-    attach_function :native_fstat, :fstat, [:int, by_ref], :int
-
     class << self
       # @!method file(stat,**fields)
       # @return [Stat]
@@ -169,32 +160,26 @@ module FFI
       %i[file dir].each { |m| define_method(m) { |stat = new, **args| stat.send(m, **args) } }
       alias directory dir
 
-      # @!method from(file, stat, follow: false)
+      # @!method from(file, stat = new(), follow: false)
       # @return [Stat]
       # @raise [SystemCallError]
       # @see Stat#from
 
-      # @!method stat(file, stat)
+      # @!method stat(file, stat = new())
       # @return [Stat]
       # @raise [SystemCallError]
       # @see Stat#stat
 
-      # @!method lstat(file, stat)
+      # @!method lstat(file, stat = new())
       # @return [Stat]
       # @raise [SystemCallError]
       # @see Stat#lstat
 
-      # @!method fstat(file, stat)
+      # @!method fstat(file, stat = new())
       # @return [Stat]
       # @raise [SystemCallError]
       # @see Stat#fstat
       %i[from stat lstat fstat].each { |m| define_method(m) { |file, stat = new, **args| stat.send(m, file, **args) } }
-
-      # @!visibility private
-
-      # @!method native_stat(path,stat_buf)
-      # @!method native_lstat(path,stat_buf)
-      # @!method native_fstat(fd,stat_buf)
     end
   end
 end

@@ -3,15 +3,15 @@
 require_relative '../fuse_helper'
 
 describe 'PassThroughFS' do
-  include LibfuseHelper
+  include FFI::Libfuse::TestHelper
 
-  let(:fs) { 'pass_through_fs.rb' }
+  let(:fs) { 'sample/pass_through_fs.rb' }
   let(:args) { %w[-obase_dir=fixture -d] }
 
   it 'lists a directory' # stat masked by 0o0222
 
   it 'reads a file' do
-    act_stdout, act_stderr, status = run_sample(fs, *args) do |mnt|
+    act_stdout, act_stderr, status = run_filesystem(fs, *args) do |mnt|
       d = Pathname.new("#{mnt}/read")
       f = d + 'hello.txt'
       expect(d.exist?).must_equal(true, "#{d} will exist")

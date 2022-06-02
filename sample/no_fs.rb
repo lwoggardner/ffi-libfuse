@@ -65,4 +65,4 @@ class NoFS
   end
 end
 
-exit(FFI::Libfuse.fuse_main($0, *ARGV, operations: NoFS.new, private_data: 'MAIN_DATA')) if __FILE__ == $0
+exit(FFI::Libfuse::Main.fuse_main($0, *ARGV, operations: NoFS.new, private_data: 'MAIN_DATA')) if __FILE__ == $0

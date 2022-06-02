@@ -19,12 +19,12 @@ module FFI
     # Filesystems that want full control (eg to take advantage of multi-threaded operations) should call
     #  {Main.fuse_main} instead
     # @note These may change between major versions
-    DEFAULT_ARGS = [$0, '-s', '-odefault_permissions', *ARGV].freeze
+    DEFAULT_ARGS = %w[-s -odefault_permissions].freeze
 
     class << self
       # Filesystem entry point
       # @see Main.fuse_main
-      def fuse_main(*argv, operations:, args: argv.any? ? argv : DEFAULT_ARGS, private_data: nil)
+      def fuse_main(*argv, operations:, args: argv.any? ? argv : Main.default_args(*DEFAULT_ARGS), private_data: nil)
         Main.fuse_main(args: args, operations: operations, private_data: private_data) || -1
       end
       alias main fuse_main

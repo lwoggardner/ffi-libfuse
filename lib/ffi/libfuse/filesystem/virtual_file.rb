@@ -9,6 +9,7 @@ module FFI
       # A Filesystem representing a single synthetic file at the root
       class VirtualFile < VirtualNode
         prepend Adapter::Ruby::Prepend
+        include Fuse2Compat
 
         # @return [String] the (binary) content of the synthetic file
         attr_reader :content
@@ -25,11 +26,11 @@ module FFI
 
         # @!group FUSE Callbacks
 
-        def getattr(path, stat)
+        def getattr(path, stat, ffi = nil)
           # We don't exist until create or otherwise or virtual stat exists
           raise Errno::ENOENT unless root?(path) && virtual_stat
 
-          stat.file(size: content.size, **virtual_stat)
+          stat.file(size: (ffi&.fh || content).size, **virtual_stat)
           self
         end
 
@@ -85,7 +86,7 @@ module FFI
         private
 
         def sio(ffi)
-          ffi&.fh || StringIO.new(content, ffi.flags)
+          ffi&.fh || StringIO.new(content, ffi&.flags)
         end
       end
     end

@@ -36,12 +36,14 @@ module FFI
             end
 
             def readdir(path, buffer, filler, offset, fuse_file_info, fuse_readdir_flag = 0)
-              filler = proc { |buf, name, stat, off = 0, _fuse_fill_dir_flag = 0| filler.call(buf, name, stat, off) }
-              super(path, buffer, filler, offset, fuse_file_info, fuse_readdir_flag)
+              f3_fill = proc { |buf, name, stat, off = 0, _fuse_fill_dir_flag = 0| filler.call(buf, name, stat, off) }
+              super(path, buffer, f3_fill, offset, fuse_file_info, fuse_readdir_flag)
             end
 
-            def fgetattr(*args)
-              getattr(*args)
+            def fgetattr(path, stat, ffi)
+              stat.clear # For some reason (at least on OSX) the stat is not clear when this is called.
+              getattr(path, stat, ffi)
+              0
             end
 
             def ftruncate(*args)

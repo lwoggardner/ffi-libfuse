@@ -103,7 +103,9 @@ module FFI
         #   * :copy_file_range can raise ENOTSUP to trigger glibc to fallback to inefficient copy
         def fuse_respond_to?(method)
           case method
-          when :getdir
+          when :getdir, :fgetattr
+            # TODO: Find out if fgetattr works on linux, something wrong with stat values on OSX.
+            #     https://github.com/osxfuse/osxfuse/issues/887
             false
           when :read_buf, :write_buf
             !no_buf
@@ -180,6 +182,14 @@ module FFI
         end
 
         attr_reader :no_buf
+
+        # This class does not implement any fuse methods, ensure they are passed to method missing.
+        # eg Kernel.open
+        FFI::Libfuse::FuseOperations.fuse_callbacks.each do |c|
+          undef_method(c)
+        rescue StandardError
+          nil
+        end
       end
     end
   end
