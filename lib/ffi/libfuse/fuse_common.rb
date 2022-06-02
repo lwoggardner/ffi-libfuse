@@ -100,7 +100,7 @@ module FFI
       # @param [Boolean] foreground
       # @param [Boolean] single_thread
       def run_native(foreground: true, single_thread: true, **options)
-        raise 'Cannot run deamonized native multi-thread fuse_loop' if !single_thread && !foreground
+        raise 'Cannot run daemonized native multi-thread fuse_loop' if !single_thread && !foreground
 
         clear_default_traps
         (se = session) && Libfuse.fuse_set_signal_handlers(se)

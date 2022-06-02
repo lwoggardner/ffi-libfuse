@@ -4,13 +4,13 @@ require_relative '../fuse_helper'
 
 describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
 
-  include LibfuseHelper
+  include FFI::Libfuse::TestHelper
 
-  let(:fs) { 'memory_fs.rb' }
+  let(:fs) { 'sample/memory_fs.rb' }
 
   %w[--help -h].each do |help_arg|
     it "prints help with #{help_arg}" do
-      stdout, stderr, status = run_sample(fs, help_arg)
+      stdout, stderr, status = run_filesystem(fs, help_arg)
       output = FFI::Libfuse::FUSE_MAJOR_VERSION >= 3 ? stdout : stderr
       expect(output).must_match(/FUSE options/)
       expect(status).must_equal(0)
@@ -18,7 +18,7 @@ describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
   end
 
   it 'prints version with -V' do
-    stdout, stderr, status = run_sample(fs, '-V')
+    stdout, stderr, status = run_filesystem(fs, '-V')
     output = FFI::Libfuse::FUSE_MAJOR_VERSION >= 3 ? stdout : stderr
     expect(output).must_match(/MemoryFS/)
     expect(status).must_equal(0)
@@ -37,7 +37,7 @@ describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
   ].kw_each do |name:, args:, skip_msg: false|
     it name do
       skip skip_msg if skip_msg
-      act_stdout, act_stderr, status = run_sample(fs, *args, env: { 'MEMORY_FS_SKIP_DEFAULT_ARGS' => 'Y'}) do |mnt|
+      act_stdout, act_stderr, status = run_filesystem(fs, *args, env: { 'MEMORY_FS_SKIP_DEFAULT_ARGS' => 'Y'}) do |mnt|
         d = Pathname.new("#{mnt}/testdir")
         f = d + 'file.txt'
         expect(d.exist?).must_equal(false,"#{d} won't exist")

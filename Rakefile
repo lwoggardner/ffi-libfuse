@@ -9,13 +9,13 @@ require 'rake/testtask'
 desc 'Unit Tests'
 Rake::TestTask.new(:unit_test) do |t|
   t.test_files = FileList['spec/ffi/**/*_test.rb']
-  t.warning = false
+  t.warning = false # suppress minitest circular require warning
 end
 
 desc 'Sample Filesystem Tests'
 Rake::TestTask.new(:sample_test) do |t|
   t.test_files = FileList['spec/sample/*_test.rb']
-  t.warning = false
+  t.warning = false # suppress minitest circular require warning
 end
 
 desc 'Run all tests'

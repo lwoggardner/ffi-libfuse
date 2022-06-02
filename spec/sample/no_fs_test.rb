@@ -4,13 +4,13 @@ require_relative '../fuse_helper'
 
 describe 'NoFS' do
 
-  include LibfuseHelper
+  include FFI::Libfuse::TestHelper
 
-  let(:fs) { 'no_fs.rb' }
+  let(:fs) { 'sample/no_fs.rb' }
 
   %w[--help -h].each do |help_arg|
     it "prints help with #{help_arg}" do
-      stdout, stderr, status = run_sample(fs, help_arg)
+      stdout, stderr, status = run_filesystem(fs, help_arg)
       output = FFI::Libfuse::FUSE_MAJOR_VERSION >= 3 ? stdout : stderr
       expect(status).must_equal(0)
       expect(output).must_match(/NoFS options/)
@@ -18,7 +18,7 @@ describe 'NoFS' do
   end
 
   it 'prints version with -V' do
-    stdout, stderr, status = run_sample(fs, '-V')
+    stdout, stderr, status = run_filesystem(fs, '-V')
     output = FFI::Libfuse::FUSE_MAJOR_VERSION >= 3 ? stdout : stderr
     expect(status).must_equal(0)
     expect(output).must_match(/NoFS: Version/)
@@ -40,7 +40,7 @@ describe 'NoFS' do
     it name do
       skip skip_msg if skip_msg
 
-      act_stdout, act_stderr, status = run_sample(fs, *args) do |mnt|
+      act_stdout, act_stderr, status = run_filesystem(fs, *args) do |mnt|
         expect(Dir.exist?(mnt)).must_equal(true, "#{mnt} will exist")
         expect(Dir.exist?("#{mnt}/other")).must_equal(false,"#{mnt}/other won't exist")
         entries = Dir.entries("#{mnt}")

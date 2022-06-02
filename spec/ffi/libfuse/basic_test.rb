@@ -12,7 +12,7 @@ require 'sys/filesystem'
 # It is not intended to test that Fuse itself works
 describe "MockFS #{FFI::Libfuse::FUSE_VERSION}" do
 
-  include LibfuseHelper
+  include FFI::Libfuse::TestHelper
 
   let(:mock_fs) { MockFS.new }
   let(:mock) { mock_fs.mock }
