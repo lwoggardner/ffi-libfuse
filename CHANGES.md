@@ -10,4 +10,5 @@
 * Implemented helper filesystems in {FFI::Libfuse::Filesystem}
 
 #### Fixes
-Lots
+* Test on OSX with macFuse
+* Lots

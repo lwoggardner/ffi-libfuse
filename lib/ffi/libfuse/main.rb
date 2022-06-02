@@ -148,9 +148,9 @@ module FFI
         def parse_run_options(args, run_args)
           args.parse!(RUN_OPTIONS) do |key:, value:, **|
             run_args[key] = value
-            next :discard if (RUN_OPTIONS.values - %i[remember]).include?(key)
+            next :keep if (STANDARD_OPTIONS.values + %i[remember]).include?(key)
 
-            :keep
+            :discard
           end
         end
       end

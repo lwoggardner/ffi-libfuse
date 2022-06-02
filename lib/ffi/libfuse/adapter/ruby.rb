@@ -134,7 +134,7 @@ module FFI
               end
             fuse_methods << fuse_method
 
-            fuse_methods.any? { |m| defined?(super) ? super(m) : fuse_super_respond_to?(m) }
+            fuse_methods.any? { |m| super(m) }
           end
 
           # Helper to test if path is root
@@ -312,10 +312,10 @@ module FFI
           #   Calls super if defined and allows ffi.fh to be GC'd
 
           %i[release releasedir].each do |fuse_method|
-            define_method(fuse_method) do |*args|
-              super(*args) if fuse_super_respond_to?(fuse_method)
+            define_method(fuse_method) do |path, ffi|
+              super(path, ffi) if fuse_super_respond_to?(fuse_method)
             ensure
-              release_handle(args.last)
+              release_handle(ffi)
             end
           end
 

@@ -22,7 +22,8 @@ Gem::Specification.new do |spec|
 
   spec.summary       = 'FFI Bindings for Libfuse'
   spec.license       = 'MIT'
-  spec.required_ruby_version = Gem::Requirement.new('>= 2.6.0')
+
+  spec.required_ruby_version = Gem::Requirement.new('>= 2.7.0') # update README.md, rubocop, travis
 
   spec.metadata['source_code_uri'] = 'http://github.com/lwoggardner/ffi-libfuse'
 
@@ -31,6 +32,10 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'ffi', '~> 1'
 
+  spec.add_development_dependency 'bundler-audit'
+  spec.add_development_dependency 'minitest'
+  spec.add_development_dependency 'minitest-reporters'
+  spec.add_development_dependency 'rake'
   spec.add_development_dependency 'rubocop'
   spec.add_development_dependency 'sys-filesystem'
   spec.add_development_dependency 'yard'

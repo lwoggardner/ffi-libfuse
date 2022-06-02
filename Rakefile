@@ -2,7 +2,7 @@
 
 require 'rake/clean'
 
-CLOBBER.include ['pkg/', 'doc/']
+CLOBBER.include %w[pkg/ doc/]
 
 require 'rake/testtask'
 
@@ -15,10 +15,14 @@ end
 desc 'Sample Filesystem Tests'
 Rake::TestTask.new(:sample_test) do |t|
   t.test_files = FileList['spec/sample/*_test.rb']
+  t.warning = false
 end
 
 desc 'Run all tests'
 task test: %i[unit_test sample_test]
+
+require 'bundler/audit/task'
+Bundler::Audit::Task.new
 
 require 'yard'
 YARD::Rake::YardocTask.new do |t|
@@ -49,7 +53,14 @@ end
 desc 'Regenerate documentation'
 task doc: %i[samples yard]
 
-task default: %i[rubocop test doc]
+task default: %i[rubocop bundle:audit:check test doc]
+
+# RELEASING
+# Branch prefixed with rc will create pre-release,  main is the actual release
+# Install gem-release gem
+# Ensure no commits/pushes pending
+# Ensure travis build has passed
+# rake release  to check,  rake release --no-verbose
 
 RELEASE_BRANCH = 'main'
 desc 'Tag and bump to trigger release to rubygems'

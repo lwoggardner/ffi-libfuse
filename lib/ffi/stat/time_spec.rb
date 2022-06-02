@@ -58,15 +58,14 @@ module FFI
 
       # @overload set_time(time)
       #  @param [Time] time
-      #  @return [TimeSpec] self
+      #  @return [self]
       # @overload set_time(sec,nsec=0)
       #  @param [Integer] sec number of (nano/micro)seconds from epoch, precision depending on nsec
       #  @param [Symbol|Integer] nsec
       #   - :nsec to treat sec as number of nanoseconds since epoch
       #   - :usec to treat sec as number of microseconds since epoch
       #   - Integer to treat sec as number of seconds since epoch, and nsec as additional nanoseconds
-      #
-      #  @return [TimeSpec] self
+      #  @return [self]
       def set_time(sec, nsec = 0)
         return set_time(sec.to_i, sec.nsec) if sec.is_a?(Time)
 
@@ -106,6 +105,10 @@ module FFI
         return (now || Time.now).utc if now?
 
         Time.at(sec, nsec, :nsec, in: 0).utc
+      end
+
+      def to_s(now = nil)
+        time(now).to_s
       end
 
       # Convert to Integer

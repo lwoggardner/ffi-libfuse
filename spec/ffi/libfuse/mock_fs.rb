@@ -47,6 +47,12 @@ class MockFS
   def destroy(_obj); end
 
   def getattr(path, stat, ffi = nil)
+
+    if path == '/'
+      stat.directory(mode: 0o777)
+      return 0
+    end
+
     # ignore OS generated calls
     raise Errno::ENOENT unless test_path?(path)
 
@@ -56,6 +62,14 @@ class MockFS
     end
 
     mock.getattr(path, stat, ffi)
+  end
+
+  # ignore OS generated calls (on MacOs)
+  def statfs(path, statvfs)
+    return 0 if path == '/'
+    return Errno::ENOENT unless test_path?(path)
+
+    mock.statfs(path,statvfs)
   end
 
   def expect(*args, &blk)
