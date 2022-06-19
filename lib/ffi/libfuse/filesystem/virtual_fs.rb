@@ -182,6 +182,14 @@ module FFI
         end
 
         attr_reader :no_buf
+
+        # This class does not implement any fuse methods, ensure they are passed to method missing.
+        # eg Kernel.open
+        FFI::Libfuse::FuseOperations.fuse_callbacks.each do |c|
+          undef_method(c)
+        rescue StandardError
+          nil
+        end
       end
     end
   end

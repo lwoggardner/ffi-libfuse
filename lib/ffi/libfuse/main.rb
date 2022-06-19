@@ -9,6 +9,19 @@ module FFI
     # Controls the main run loop for a FUSE filesystem
     module Main
       class << self
+        # Builds default argument list for #{fuse_main} regardless of being called directly or from mount.fuse3
+        #
+        # @param [Array<String>] extra_args additional arguments to add to $0 and *ARGV
+        # @return [Array<String>]
+        # @see https://github.com/libfuse/libfuse/issues/621
+        def default_args(*extra_args)
+          args = ARGV.dup
+
+          # If called from mount.fuse3 we already have a 'source' argument which should go at args[0]
+          args.unshift($0) unless args.size >= 2 && args[0..1].all? { |a| !a.start_with?('-') }
+          args.concat(extra_args)
+        end
+
         # Main function of FUSE
         #
         # This function:
@@ -31,7 +44,7 @@ module FFI
         #  any data to be made available to the {FuseOperations#init} callback
         #
         # @return [Integer] suitable for process exit code
-        def fuse_main(*argv, operations:, args: argv.any? ? argv : [$0, *ARGV], private_data: nil)
+        def fuse_main(*argv, operations:, args: argv.any? ? argv : default_args, private_data: nil)
           run_args = fuse_parse_cmdline(args: args, handler: operations)
           return 2 unless run_args
 
@@ -63,7 +76,7 @@ module FFI
         # - parses standard fuse mount options
         #
         # @param [Array<String>] argv mount.fuse arguments
-        #   expects progname, [fsname,] mountpoint, options.... from mount.fuse3
+        #   expects progname, mountpoint, options....
         # @param [FuseArgs] args
         #   alternatively constructed args
         # @param [Object] handler
@@ -75,7 +88,7 @@ module FFI
         #   * show_version [Boolean]: -v or --version
         #   * debug [Boolean]: -d
         #   * others are options to pass to {FuseCommon#run}
-        def fuse_parse_cmdline(*argv, args: argv, handler: nil)
+        def fuse_parse_cmdline(*argv, args: argv.any? ? argv : default_args, handler: nil)
           args = fuse_init_args(args)
 
           # Parse args and print cmdline help
@@ -94,16 +107,15 @@ module FFI
 
         # @return [FuseCommon|nil] the mounted filesystem or nil if not mounted
         def fuse_create(mountpoint, *argv, operations:, args: nil, private_data: nil)
-          args = fuse_init_args(args || argv.unshift(mountpoint))
+          args = fuse_init_args(args || argv)
 
           operations = FuseOperations.new(delegate: operations) unless operations.is_a?(FuseOperations)
 
-          fuse = Fuse.new(mountpoint, args, operations, private_data)
+          fuse = Fuse.new(mountpoint.to_s, args, operations, private_data)
           fuse if fuse.mounted?
         end
 
         # @!visibility private
-
         def fuse_configure(operations:, show_help: false, show_version: false, **_)
           return true unless operations.respond_to?(:fuse_configure) && !show_help && !show_version
 
@@ -120,20 +132,15 @@ module FFI
           end
         end
 
-        # Version text
+        # @!visibility private
         def version
           "#{name}: #{VERSION}"
         end
 
+        private
+
         def fuse_init_args(args)
           if args.is_a?(Array)
-            args = args.map(&:to_s) # handle mountpoint as Pathname etc..
-
-            # https://github.com/libfuse/libfuse/issues/621 handle "source" field sent from /etc/fstab via mount.fuse3
-            # if arg[1] and arg[2] are both non option fields then replace arg1 with -ofsname=<arg1>
-            unless args.size <= 2 || args[1]&.start_with?('-') || args[2]&.start_with?('-')
-              args[1] = "-ofsname=#{args[1]}"
-            end
             warn "FuseArgs: #{args.join(' ')}" if args.include?('-d')
             args = FuseArgs.create(*args)
           end
@@ -142,8 +149,6 @@ module FFI
 
           raise ArgumentError "fuse main args: must be Array<String> or #{FuseArgs.class.name}"
         end
-
-        private
 
         def parse_run_options(args, run_args)
           args.parse!(RUN_OPTIONS) do |key:, value:, **|

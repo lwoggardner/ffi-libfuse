@@ -27,7 +27,7 @@ module FFI
         #
         # @yieldreturn [SystemCallError] expected callback errors rescued to return equivalent -ve errno value
         # @yieldreturn [StandardError,ScriptError] unexpected callback errors are rescued
-        #   to return -Errno::ENOTRECOVERABLE after emitting backtrace to #warn
+        #   to return -ve {default_errno} after emitting backtrace to #warn
         #
         # @yieldreturn [Integer]
         #
@@ -40,8 +40,16 @@ module FFI
         def safe_callback(fuse_method, *args)
           result = yield(*args)
 
+          if MEANINGFUL_RETURN.include?(fuse_method)
+            unless result&.respond_to?(:to_i)
+              raise ArgumentError, "#{fuse_method} expects a meaningful integer result, got #{result.class.name}"
+            end
+
+            return result.to_i
+          end
+
           return 0 unless result.is_a?(Integer)
-          return 0 unless result.negative? || MEANINGFUL_RETURN.include?(fuse_method)
+          return 0 unless result.negative?
 
           result
         rescue SystemCallError => e
@@ -50,7 +58,27 @@ module FFI
           # rubocop:disable Layout/LineLength
           warn ["FFI::Libfuse error in #{fuse_method}", *e.backtrace.reverse, "#{e.class.name}:#{e.message}"].join("\n\t")
           # rubocop:enable Layout/LineLength
-          -Errno::ENOTRECOVERABLE::Errno
+          -default_errno.abs
+        end
+
+        # Set the default error that is returned on unexpected exceptions
+        # @param [Integer|Module|Errno] errno
+        # @return [Integer] errno converted to an integer value
+        def default_errno=(errno)
+          @default_errno =
+            case errno
+            when Integer
+              errno
+            when Module
+              errno.const_get(:Errno)
+            else
+              errno.errno
+            end
+        end
+
+        # @return [Integer] the default errno.  ENOTRECOVERABLE unless explicitly set
+        def default_errno
+          @default_errno ||= Errno::ENOTRECOVERABLE::Errno
         end
       end
     end

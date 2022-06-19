@@ -12,18 +12,20 @@ module FFI
       SeekWhenceShort = enum :short, seek_whence
       SeekWhence = enum :int, seek_whence
 
-      LockType = enum :short, %i[f_rdlck f_wrlck f_unlck]
-      LockCmd = enum :int, [:f_getlk, 5, :f_setlk, 6, :f_setlkw, 7]
+      LockType = enum :short, %i[rdlck wrlck unlck]
+      LockCmd = enum :int, [:getlk, 5, :setlk, 6, :setlkw, 7]
     end
 
     include(Accessors)
 
-    layout(type: Enums::LockType, whence: Enums::SeekWhenceShort, start: :off_t, len: :off_t, pid: :pid_t)
+    layout(l_type: Enums::LockType, l_whence: Enums::SeekWhenceShort, l_start: :off_t, l_len: :off_t, l_pid: :pid_t)
 
-    ffi_attr_reader :type, :whence, :start, :len, :pid
+    l_members = members.grep(/^l_/).map { |m| m[2..].to_sym }
+
+    ffi_attr_reader(*l_members, format: 'l_%s')
 
     # @!attribute [r] type
-    #   @return [Symbol] lock type, :f_rdlck, :f_wrlck, :f_unlck
+    #   @return [Symbol] lock type, :rdlck, :wrlck, :unlck
 
     # @!attribute [r] whence
     #   @return [Symbol] specifies what the offset is relative to, one of :seek_set, :seek_cur or :seek_end

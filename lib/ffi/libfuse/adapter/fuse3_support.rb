@@ -50,7 +50,7 @@ module FFI
           #  but there is no way to handle OMIT
           def utimens(*args)
             args.pop
-            super(*args)
+            super(*args) if defined?(super)
           end
 
           def init(*args)
@@ -72,6 +72,10 @@ module FFI
             end
 
             super(*args, &block)
+          end
+
+          def fuse_respond_to(fuse_callback)
+            super || (%i[truncate getattr].include?(fuse_callback) && fuse_super_respond_to?("f#{fuse_callback}"))
           end
         end
 
