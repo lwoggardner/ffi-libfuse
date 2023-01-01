@@ -50,6 +50,14 @@ module FFI
     class FuseOperations < FFI::Struct
       include FuseCallbacks
 
+      # Callbacks that are expected to return meaningful positive integers
+      MEANINGFUL_RETURN = %i[read write write_buf lseek copy_file_range getxattr listxattr].freeze
+
+      # @return [Boolean] true if fuse_callback expects a meaningful integer return
+      def self.meaningful_return?(fuse_callback)
+        MEANINGFUL_RETURN.include?(fuse_callback)
+      end
+
       # Container to dynamically build up the operations layout which is dependent on the loaded libfuse version
       op = {}
 

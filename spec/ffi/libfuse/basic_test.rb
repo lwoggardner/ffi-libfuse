@@ -142,7 +142,7 @@ describe "MockFS #{FFI::Libfuse::FUSE_VERSION}" do
       end
 
       with_fuse(mock_fs) do |mp|
-        File.open("#{mp}/testDirectory/newfile", 'w', 0o644) { |_f| }
+        File.open("#{mp}/testDirectory/newfile", 'w', 0o644) { |_f|  }
       end
     end
 

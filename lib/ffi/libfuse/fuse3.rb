@@ -87,10 +87,10 @@ module FFI
           $stdout.puts "\n#{handler.fuse_help}" if handler.respond_to?(:fuse_help)
         end
 
-        def finalize_fuse(fuse)
+        def finalize_fuse(fuse, mounted)
           proc do
             if fuse
-              Libfuse.fuse_unmount3(fuse)
+              Libfuse.fuse_unmount3(fuse) if mounted
               Libfuse.fuse_destroy(fuse)
             end
           end
@@ -101,7 +101,7 @@ module FFI
 
       # Have we requested an unmount (note not actually checking if OS sees the fs as mounted)
       def mounted?
-        session && !fuse_exited?
+        session && !fuse_exited? && @mounted
       end
 
       def initialize(mountpoint, args, operations, private_data)
@@ -119,9 +119,7 @@ module FFI
 
         @mounted = @fuse && Libfuse.fuse_mount3(@fuse, @mountpoint).zero?
       ensure
-        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destroy
-        # as it's weakref will have been GC'd
-        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse))
+        define_finalizer
       end
 
       def fuse_exited?
@@ -152,7 +150,19 @@ module FFI
       end
 
       def unmount
-        Libfuse.fuse_unmount3(@fuse) if @mounted && @fuse && !@fuse.null?
+        return unless @mounted && @fuse && !@fuse.null?
+
+        Libfuse.fuse_unmount3(@fuse)
+        @mounted = false
+      ensure
+        define_finalizer
+      end
+
+      def define_finalizer
+        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destroy
+        # as it's weakref will have been GC'd
+        ObjectSpace.undefine_finalizer(self)
+        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse, @mounted))
       end
     end
 

@@ -115,9 +115,7 @@ module FFI
           @fuse = nil if @fuse&.null?
         end
       ensure
-        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destory
-        # as it's weakref will have been GC'd
-        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse, @mountpoint, @ch))
+        define_finalizer
       end
 
       # [IO] /dev/fuse file descriptor for use with IO.select
@@ -150,6 +148,16 @@ module FFI
         c = @ch
         @ch = nil
         Libfuse.fuse_unmount2(mountpoint, c)
+      ensure
+        # Can't unmount twice
+        define_finalizer
+      end
+
+      def define_finalizer
+        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destory
+        # as it's weakref will have been GC'd
+        ObjectSpace.undefine_finalizer(self)
+        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse, @mountpoint, @ch))
       end
     end
 

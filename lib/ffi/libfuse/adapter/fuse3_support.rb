@@ -22,14 +22,14 @@ module FFI
 
           def getattr(*args)
             fi = args.pop
-            return fgetattr(*args, fi) if fi && respond_to?(:fgetattr)
+            return fgetattr(*args, fi) if fi && fuse_super_respond_to?(:fgetattr)
 
             super(*args)
           end
 
           def truncate(*args)
             fi = args.pop
-            return ftruncate(*args, fi) if fi && respond_to?(:ftruncate)
+            return ftruncate(*args, fi) if fi && fuse_super_respond_to?(:ftruncate)
 
             super(*args)
           end

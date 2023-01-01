@@ -56,12 +56,15 @@ class MockFS
     # ignore OS generated calls
     raise Errno::ENOENT unless test_path?(path)
 
-    if @paths.key?(path)
-      @paths[path].call(stat)
-      return 0
-    end
+    res =
+      if @paths.key?(path)
+        @paths[path].call(stat)
+      else
+        mock.getattr(path, stat, ffi)
+      end
 
-    mock.getattr(path, stat, ffi)
+    raise SystemCallError.new(nil, -res) if res.is_a?(Integer) && res.negative?
+    0
   end
 
   # ignore OS generated calls (on MacOs)

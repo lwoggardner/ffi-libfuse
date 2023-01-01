@@ -10,7 +10,7 @@ module FFI
         # @!visibility private
         def fuse_wrappers(*wrappers)
           wrappers << {
-            wrapper: proc { |fm, *args, **_, &b| Safe.safe_callback(fm, *args, &b) },
+            wrapper: proc { |fm, *args, **_, &b| Safe.safe_callback(fm, *args, default_errno: default_errno, &b) },
             excludes: %i[init destroy]
           }
           return wrappers unless defined?(super)
@@ -18,8 +18,10 @@ module FFI
           super(*wrappers)
         end
 
-        # Callbacks that are expected to return meaningful positive integers
-        MEANINGFUL_RETURN = %i[read write write_buf lseek copy_file_range getxattr listxattr].freeze
+        # @return [Integer] the default errno.  ENOTRECOVERABLE unless overridden
+        def default_errno
+          defined?(super) ? super : Errno::ENOTRECOVERABLE::Errno
+        end
 
         module_function
 
@@ -32,26 +34,17 @@ module FFI
         # @yieldreturn [Integer]
         #
         #   * -ve values returned directly
-        #   * +ve values returned directly for fuse_methods in {MEANINGFUL_RETURN} list
+        #   * +ve values returned directly for fuse_methods in {FuseOperations.MEANINGFUL_RETURN} list
         #   * otherwise returns 0
         #
         # @yieldreturn [Object] always returns 0 if no exception is raised
         #
-        def safe_callback(fuse_method, *args)
+        def safe_callback(fuse_method, *args, default_errno: Errno::ENOTRECOVERABLE::Errno)
           result = yield(*args)
 
-          if MEANINGFUL_RETURN.include?(fuse_method)
-            unless result&.respond_to?(:to_i)
-              raise ArgumentError, "#{fuse_method} expects a meaningful integer result, got #{result.class.name}"
-            end
+          return result.to_i if FuseOperations.meaningful_return?(fuse_method)
 
-            return result.to_i
-          end
-
-          return 0 unless result.is_a?(Integer)
-          return 0 unless result.negative?
-
-          result
+          0
         rescue SystemCallError => e
           -e.errno
         rescue StandardError, ScriptError => e
@@ -59,26 +52,6 @@ module FFI
           warn ["FFI::Libfuse error in #{fuse_method}", *e.backtrace.reverse, "#{e.class.name}:#{e.message}"].join("\n\t")
           # rubocop:enable Layout/LineLength
           -default_errno.abs
-        end
-
-        # Set the default error that is returned on unexpected exceptions
-        # @param [Integer|Module|Errno] errno
-        # @return [Integer] errno converted to an integer value
-        def default_errno=(errno)
-          @default_errno =
-            case errno
-            when Integer
-              errno
-            when Module
-              errno.const_get(:Errno)
-            else
-              errno.errno
-            end
-        end
-
-        # @return [Integer] the default errno.  ENOTRECOVERABLE unless explicitly set
-        def default_errno
-          @default_errno ||= Errno::ENOTRECOVERABLE::Errno
         end
       end
     end

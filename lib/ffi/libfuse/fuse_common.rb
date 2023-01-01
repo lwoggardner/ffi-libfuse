@@ -165,7 +165,7 @@ module FFI
       # @api private
       # Ruby implementation of single threaded fuse loop
       def fuse_loop(**_options)
-        fuse_process until fuse_exited?
+        safe_fuse_process until fuse_exited?
       end
 
       # @api private
@@ -179,11 +179,17 @@ module FFI
         ThreadPool.new(name: 'FuseThread', max_idle: max_idle_threads.to_i, max_active: max_threads&.to_i) do
           raise StopIteration if fuse_exited?
 
-          fuse_process
+          safe_fuse_process
         end.join
       end
 
       # @!visibility private
+
+      def safe_fuse_process
+        # sometimes we get null on unmount, and exit needs a chance to finish to avoid hangs
+        fuse_process || (sleep(0.1) && false)
+      end
+
       def teardown
         return unless @fuse
 
@@ -209,7 +215,6 @@ module FFI
           sleep 0.2 if mac_fuse?
 
           Libfuse.fuse_exit(@fuse)
-
           true
         end
       end
