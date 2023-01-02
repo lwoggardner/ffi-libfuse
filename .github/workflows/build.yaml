@@ -39,24 +39,7 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
-      - name: Update system gems
-        run: gem update --system
-
       - name: Run tests
         env:
-          LIB_FUSE: ${{ matrix.libfuse }}
+          LIBFUSE: ${{ matrix.libfuse }}
         run: bundle exec rake
-  deploy:
-    needs: build
-    runs_on: 'ubuntu_latest'
-    steps:
-      - uses: actions/checkout@v3
-      - name: Preinstall
-        env:
-          FUSE_PKG: ${{ matrix.fuse_pkg }}
-        run: .github/scripts/pre_install_${{matrix.pre_install}}.sh
-      - name: Set up Ruby ${{ matrix.ruby-version }}
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 2.7
-          bundler-cache: true
