@@ -42,4 +42,5 @@ jobs:
       - name: Run tests
         env:
           LIBFUSE: ${{ matrix.libfuse }}
+          TERM: color
         run: bundle exec rake
