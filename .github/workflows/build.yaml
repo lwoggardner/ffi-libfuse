@@ -12,15 +12,6 @@ jobs:
         ruby-version: ['2.7', '3.0', '3.1', '3.2']
         os: ['ubuntu-latest'] # mac-os when/if Macfuse can be deployed on CI images
         fuse-pkg: ['fuse2','fuse3']
-        include:
-          - os: 'ubuntu-latest'
-            fuse_pkg: 'fuse2'
-            libfuse: 'libfuse.so.2'
-            pre_install: 'linux'
-          - os: 'ubuntu-latest'
-            fuse_pkg: 'fuse3'
-            libfuse: 'libfuse3.so.3'
-            pre_install: 'linux'
 
     runs-on: ${{ matrix.os }}
     env:  # Used in gemspec to determine version
@@ -33,7 +24,7 @@ jobs:
       - name: Preinstall
         env:
           FUSE_PKG: ${{ matrix.fuse_pkg }}
-        run: .github/scripts/pre_install_${{matrix.pre_install}}.sh
+        run: .github/scripts/pre_install_${{runner.os}}.sh
       - name: Set up Ruby ${{ matrix.ruby-version }}
         uses: ruby/setup-ruby@v1
         with:
@@ -41,6 +32,5 @@ jobs:
           bundler-cache: true
       - name: Run tests
         env:
-          LIBFUSE: ${{ matrix.libfuse }}
-          TERM: color
+          TERM: color # Pretty spec output
         run: bundle exec rake

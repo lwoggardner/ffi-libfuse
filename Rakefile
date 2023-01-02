@@ -33,6 +33,7 @@ task yard: ['README.md']
 require 'rubocop/rake_task'
 RuboCop::RakeTask.new
 
+# Inject known working Hello World sample into readme
 file('README.md' => ['sample/hello_fs.rb']) do |t|
   readme = File.read(t.name)
   t.prerequisites.each do |sample_file|
@@ -46,6 +47,7 @@ file('README.md' => ['sample/hello_fs.rb']) do |t|
   File.write(t.name, readme)
 end
 
+# Force samples
 task :samples do |_t|
   FileList['sample/*.rb'].each { |f| touch f }
 end
