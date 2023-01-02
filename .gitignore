@@ -13,3 +13,11 @@ Gemfile.lock
 !.yardopts
 !.gitignore
 !.travis.yml
+
+!/.github/
+!/.github/scripts/
+!/.github/scripts/*
+!/.github/workflows/
+!/.github/workflows/*
+
+

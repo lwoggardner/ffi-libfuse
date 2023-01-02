@@ -56,21 +56,27 @@ task doc: %i[samples yard]
 task default: %i[rubocop bundle:audit:check test doc]
 
 # RELEASING
-# Branch prefixed with rc will create pre-release,  main is the actual release
-# Install gem-release gem
-# Ensure no commits/pushes pending
-# Ensure travis build has passed
-# rake release  to check,  rake release --no-verbose
+# CI
+#   push/PR to branch runs default task against a matrix of OS, ruby versions and Fuse2/Fuse3
+#   push to branch (or tag) prefixed with 'rc' will create pre-release using branch/tag and CI build number
+#   push to tag vX.Y.Z (ie resulting from manually calling rake tag --no-verbose)
 
+
+# Review changelog and ypdate CHANGES.md as necessary
+# Update major/minor version in lib/ffi-libfuse/version.rb if necessary (as per semantic versioning)
+# Commit/Push and ensure CI builds are passing
+# rake tag  to check, rake tag --no-verbose
+# gem install gem-release
+# TODO: Make ^^ a workflow-dispatch (manual from github console) action
 RELEASE_BRANCH = 'main'
 desc 'Tag and bump to trigger release to rubygems'
-task :release, [:options] => %i[clobber default] do |_t, args|
+task :tag, [:options] => %i[clobber default] do |_t, args|
   args.with_defaults(options: '--pretend') # use [--no-verbose] to force
   branch = `git rev-parse --abbrev-ref HEAD`.strip
   raise "Cannot release from #{branch}, only #{RELEASE_BRANCH}" unless branch == RELEASE_BRANCH
 
   Bundler.with_unbundled_env do
-    raise 'Tag failed' unless system({ 'FFI_LIBFUSE_RELEASE' => 'Y' }, "gem tag -p #{args[:options]}".strip)
+    raise 'Tag failed' unless system({ 'RAKEFILE_TAG' => 'Y' }, "gem tag -p #{args[:options]}".strip)
     raise 'Bump failed' unless system("gem bump -v patch -p #{args[:options]}".strip)
   end
 end
