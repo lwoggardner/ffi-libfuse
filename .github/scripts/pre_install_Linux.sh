@@ -8,6 +8,6 @@ sudo modprobe -v fuse
 sudo chmod 666 /dev/fuse && ls -l /dev/fuse
 sudo chown root:$USER /etc/fuse.conf && ls -l /etc/fuse.conf
 
-declare -A LIBS =( [fuse2]="libfuse.so.2" [fuse3]="libfuse3.so.3")
+declare -A LIBS=([fuse2]="libfuse.so.2" [fuse3]="libfuse3.so.3")
 
 echo "LIBFUSE=${LIBS[${FUSE_PKG}]}" || tee -a ${GITHUB_ENV}
