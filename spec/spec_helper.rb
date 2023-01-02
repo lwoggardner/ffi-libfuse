@@ -3,7 +3,12 @@
 require 'minitest/spec'
 require 'minitest/autorun'
 require 'minitest/reporters'
-Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new unless ENV.key?('RM_INFO')
+
+unless ENV.key?('RM_INFO')
+  options = {}
+  options[:color] = true if ENV.include?('GITHUB_JOB')
+  Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new(**options)
+end
 
 module Enumerable
   # generate clean keyword args from hashes
