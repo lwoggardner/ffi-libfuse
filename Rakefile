@@ -61,7 +61,6 @@ task default: %i[rubocop bundle:audit:check test doc]
 #   push to branch (or tag) prefixed with 'rc' will create pre-release using branch/tag and CI build number
 #   push to tag vX.Y.Z (ie resulting from manually calling rake tag --no-verbose)
 
-
 # Review changelog and ypdate CHANGES.md as necessary
 # Update major/minor version in lib/ffi-libfuse/version.rb if necessary (as per semantic versioning)
 # Commit/Push and ensure CI builds are passing

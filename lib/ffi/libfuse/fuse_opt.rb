@@ -19,7 +19,7 @@ module FFI
       def fill(template, value)
         str_ptr = FFI::MemoryPointer.from_string(template)
         self[:template] = str_ptr
-        self[:offset] = (2**(8 * FFI::Type::INT.size)) - 1 # -(1U)  in a LONG!!
+        self[:offset] = (2**(FFI::Type::INT.size * 8)) - 1 # -(1U)  in a LONG!!
         self[:value] = value.to_i
         self
       end

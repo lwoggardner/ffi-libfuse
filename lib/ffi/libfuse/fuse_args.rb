@@ -20,7 +20,7 @@ module FFI
       # @example
       #  FFI::Libfuse::FuseArgs.create($0,*ARGV)
       def self.create(*argv)
-        argv.unshift('ffi-libfuse') if argv.size.zero? || argv[0].start_with?('-')
+        argv.unshift('ffi-libfuse') if argv.empty? || argv[0].start_with?('-')
         new.fill(*argv)
       end
 
