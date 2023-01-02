@@ -3,6 +3,6 @@
 module FFI
   # Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)
   module Libfuse
-    VERSION = '0.1.0'
+    VERSION = '0.2.0'
   end
 end

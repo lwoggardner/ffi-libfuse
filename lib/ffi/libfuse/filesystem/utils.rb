@@ -19,7 +19,7 @@ module FFI
         # @param [Integer] mode permissions for any dirs that need to be created
         # @yieldparam [String] the path component being created
         # @yieldreturn [FuseOperations] optionally a filesystem to mount at path, if the path did not previously exist
-        def mkdir_p(path, mode = (0o0777 & ~FuseContext.get.umask), &mount_fs)
+        def mkdir_p(path, mode = (~FuseContext.get.umask & 0o0777), &mount_fs)
           return if root?(path) # nothing to make
 
           path.to_s.split('/')[1..].inject('') do |base_path, sub_dir|
@@ -71,7 +71,7 @@ module FFI
         # @return [Boolean] File exists at path and has zero size
         def empty_file?(path)
           s = stat(path)
-          (s&.file? && s.size.zero?) || false
+          (s&.file? && s.size.zero?) || false # rubocop:disable Style/ZeroLengthPredicate
         end
 
         # Check if a directory is empty

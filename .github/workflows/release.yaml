@@ -1,0 +1,46 @@
+# Tag and Release
+name: Release
+
+on:
+  workflow_dispatch:  # Manually tag and mini-bump,  tag will cause re invoke with push as below
+  push: # Resulting from workflow dispatch (or manually, but that will skip version mini-bump)
+    tag:
+      - "v[0-9]+.[0-9]+.[0-9]+*"   # semver tags
+  workflow_call: # From release-please (since tag with GITHUB_TOKEN won't trigger)
+    inputs:
+      release_tag:
+        type: string
+        required: true
+    secrets:
+      RUBYGEMS_API_KEY:
+        required: true
+jobs:
+  call-build:  # build all platforms if this is a manual call
+    uses: ./.github/workflows/build.yaml
+    if: github.event_name == 'workflow-dispatch'
+  release:
+    needs: call-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+          bundler-cache: true
+
+      - run: gem install gem-release
+      - name: Setup Credentials
+        run: |
+          mkdir -p $HOME/.gem
+          touch $HOME/.gem/credentials
+          chmod 0600 $HOME/.gem/credentials
+          printf -- "---\n:rubygems_api_key: ${GEM_HOST_API_KEY}\n:github: Bearer ${GITHUB_TOKEN}\n" > $HOME/.gem/credentials
+        env:
+          GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_API_KEY}}"
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Release
+        run: bundle exec rake release[--color]
+        env:
+          RELEASE_PLEASE_TAG_NAME: "${{inputs.release_tag}}"
+

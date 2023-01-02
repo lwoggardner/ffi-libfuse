@@ -1,0 +1,32 @@
+name: Release Please
+
+# This is only used on main branch
+# It is the ONLY thing that should update the changelog and version (which can be reviewed in the PR)
+on:
+  push:
+    branches: # Only run on main
+      - main
+
+jobs:
+  # Generally the push to main is a result of a PR which has already been tested
+  # But just in case
+  call-build: # build all platforms
+    uses: ./.github/workflows/build.yaml
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: GoogleCloudPlatform/release-please-action@v3
+        id: release-please-pr
+        with:
+          release-type: ruby
+          package-name: ffi-libfuse
+          version-file: "lib/ffi/libfuse/version.rb"
+          bump-minor-pre-major: true
+          default-branch: ${{ github.ref_name }} # ie raise PRs to the branch we are running against
+          bootstrap-sha: 413fee0cc516bccb54804a3602c60bca99aaf86f
+      - run: echo "${JSON}"
+        env:
+          JSON: ${{ toJSON(steps.release-please-pr) }}
+    outputs:
+      tag_name: ${{ steps.release-please-pr.outputs.tag_name }}
+# TODO: call release workflow, passing tag_name as RELEASE_PLEASE_TAG_NAME
