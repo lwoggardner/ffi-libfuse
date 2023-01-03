@@ -14,11 +14,6 @@ jobs:
         fuse_pkg: ['fuse','fuse3']
 
     runs-on: ${{ matrix.os }}
-    env:  # Used in gemspec to determine version
-      # TODO: These are available as GITHUB_ variables but lets get it working first
-      TRAVIS_BUILD_NUMBER: ${{ github.run_number }}
-      TRAVIS_BRANCH_NAME: ${{ github.ref_name }}
-      TRAVIS_BUILD_STAGE_NAME: ${{ github.job }}
     steps:
       - uses: actions/checkout@v3
       - name: Preinstall

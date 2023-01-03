@@ -1,20 +1,10 @@
 # frozen_string_literal: true
 
-require_relative 'lib/ffi/libfuse/version'
+require_relative 'lib/ffi/libfuse/gem_version'
 
 Gem::Specification.new do |spec|
   spec.name          = 'ffi-libfuse'
-
-  spec.version       =
-    # Only use the release version for actual deployment
-    if ENV.fetch('TRAVIS_BUILD_STAGE_NAME', nil)&.downcase == 'prerelease'
-      "#{FFI::Libfuse::VERSION}.#{ENV.fetch('TRAVIS_BRANCH', nil)}#{ENV.fetch('TRAVIS_BUILD_NUMBER', nil)}"
-    elsif ENV.fetch('RAKEFILE_TAG',
-                    nil) || ENV.fetch('TRAVIS_BUILD_STAGE_NAME', nil)&.downcase == 'deploy'
-      FFI::Libfuse::VERSION
-    else
-      "#{FFI::Libfuse::VERSION}.pre"
-    end
+  spec.version       = FFI::Libfuse::GEM_VERSION
 
   spec.authors       = ['Grant Gardner']
   spec.email         = ['grant@lastweekend.com.au']

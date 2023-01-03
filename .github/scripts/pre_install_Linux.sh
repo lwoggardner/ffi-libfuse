@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "PreInstall Linux for FUSE_PKG=${FUSE_PKG}"
-sudo apt-get update -y -q
+sudo apt-get update -y -qq
 sudo apt-get -q -y install pkg-config ${FUSE_PKG} libffi-dev gcc make
 sudo modprobe -v fuse
 sudo chmod 666 /dev/fuse && ls -l /dev/fuse
