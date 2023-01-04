@@ -61,6 +61,10 @@ task default: %i[version rubocop bundle:audit:check test doc]
 desc 'Version info'
 task :version do
   require_relative 'lib/ffi/libfuse/gem_version'
+  ENV.keys.grep(/^GITHUB_.*REF/).each do |k|
+    puts "#{k}=#{ENV.fetch(k, nil)}"
+  end
+
   v = Gem::Version.new(FFI::Libfuse::VERSION)
   gv = Gem::Version.new(FFI::Libfuse::GEM_VERSION)
 
@@ -68,9 +72,7 @@ task :version do
   raise "Mismatched versions - #{msg}" unless gv.release == v
 
   puts msg
-  ENV.keys.grep(/^GITHUB_.*REF/).each do |k|
-    puts "#{k}=#{ENV.fetch(k, nil)}"
-  end
+
 end
 
 require 'bundler/gem_tasks'
