@@ -68,6 +68,9 @@ task :version do
   raise "Mismatched versions - #{msg}" unless gv.release == v
 
   puts msg
+  ENV.keys.grep(/^GITHUB_.*REF/).each do |k|
+    puts "#{k}=#{ENV.fetch(k, nil)}"
+  end
 end
 
 require 'bundler/gem_tasks'
