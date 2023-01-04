@@ -72,7 +72,6 @@ task :version do
   raise "Mismatched versions - #{msg}" unless gv.release == v
 
   puts msg
-
 end
 
 require 'bundler/gem_tasks'
