@@ -2,7 +2,7 @@
 name: Release
 
 on:
-  workflow-call:
+  workflow_call:
   #tag:
   #  - "v[0-9]+.[0-9]+.[0-9]+"    # release tags
   #  - "v[0-9]+.[0-9]+.[0-9]+.*"  # pre-release tags
