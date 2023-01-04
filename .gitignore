@@ -1,5 +1,6 @@
 # All . files unless explicitly included
 .**/*
+*.log
 Gemfile.lock
 /coverage/
 /doc/
@@ -7,7 +8,16 @@ Gemfile.lock
 /spec/reports/
 /tmp/
 /mnt/
+/vendor/
 !.rubocop.yml
 !.yardopts
 !.gitignore
 !.travis.yml
+
+!/.github/
+!/.github/scripts/
+!/.github/scripts/*
+!/.github/workflows/
+!/.github/workflows/*
+
+

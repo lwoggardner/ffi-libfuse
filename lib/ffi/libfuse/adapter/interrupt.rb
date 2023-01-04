@@ -27,7 +27,7 @@ module FFI
 
         # @raise [Errno::EINTR] if the fuse request is marked as interrupted
         def interrupt_callback(*args)
-          return -Errno::EINTR::Errno if Libfuse.fuse_interrupted?
+          Libfuse.raise_interrupt
 
           yield(*args)
         end

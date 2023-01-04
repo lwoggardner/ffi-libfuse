@@ -27,7 +27,7 @@ module FFI
     attach_function :fuse_session_fd, [:session], :int
     attach_function :fuse_session_exit, [:session], :void
     attach_function :fuse_session_exited, [:session], :int
-    attach_function :fuse_unmount3, :fuse_unmount, %i[fuse], :void
+    attach_function :fuse_unmount3, :fuse_unmount, %i[fuse], :void, blocking: true
     attach_function :fuse_session_receive_buf, [:session, FuseBuf.by_ref], :int, blocking: true
     attach_function :fuse_session_process_buf, [:session, FuseBuf.by_ref], :void, blocking: true
 
@@ -56,7 +56,7 @@ module FFI
       class << self
         def parse_cmdline(args, handler: nil)
           cmdline_opts = FuseCmdlineOpts.new
-          Libfuse.fuse_parse_cmdline3(args, cmdline_opts)
+          return nil unless Libfuse.fuse_parse_cmdline3(args, cmdline_opts).zero?
 
           handler&.fuse_debug(cmdline_opts.debug) if handler.respond_to?(:fuse_debug)
 
@@ -87,10 +87,10 @@ module FFI
           $stdout.puts "\n#{handler.fuse_help}" if handler.respond_to?(:fuse_help)
         end
 
-        def finalize_fuse(fuse)
+        def finalize_fuse(fuse, mounted)
           proc do
             if fuse
-              Libfuse.fuse_unmount3(fuse)
+              Libfuse.fuse_unmount3(fuse) if mounted
               Libfuse.fuse_destroy(fuse)
             end
           end
@@ -101,7 +101,7 @@ module FFI
 
       # Have we requested an unmount (note not actually checking if OS sees the fs as mounted)
       def mounted?
-        (se = session) && Libfuse.fuse_session_exited(se).zero?
+        session && !fuse_exited? && @mounted
       end
 
       def initialize(mountpoint, args, operations, private_data)
@@ -119,24 +119,22 @@ module FFI
 
         @mounted = @fuse && Libfuse.fuse_mount3(@fuse, @mountpoint).zero?
       ensure
-        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destroy
-        # as it's weakref will have been GC'd
-        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse))
+        define_finalizer
       end
 
-      def process
-        buf = Thread.current[:fuse_buffer] ||= FuseBuf.new
-        se = Thread.current[:fuse_session] ||= session
+      def fuse_exited?
+        !Libfuse.fuse_session_exited(session).zero?
+      end
 
+      def fuse_process
+        se = session
+        buf = Thread.current[:fuse_buffer] ||= FuseBuf.new
         res = Libfuse.fuse_session_receive_buf(se, buf)
 
-        # errors, or exiting
-        return false if res.negative?
+        return false unless res.positive?
 
-        Libfuse.fuse_session_process_buf(se, buf) if res.positive?
-
-        # return true unless fuse has exited.
-        Libfuse.fuse_session_exited(se).zero?
+        Libfuse.fuse_session_process_buf(se, buf)
+        true
       end
 
       # [IO] /dev/fuse file descriptor for use with IO.select
@@ -152,7 +150,19 @@ module FFI
       end
 
       def unmount
-        Libfuse.fuse_unmount3(@fuse) if @mounted && @fuse && !@fuse.null?
+        return unless @mounted && @fuse && !@fuse.null?
+
+        Libfuse.fuse_unmount3(@fuse)
+        @mounted = false
+      ensure
+        define_finalizer
+      end
+
+      def define_finalizer
+        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destroy
+        # as it's weakref will have been GC'd
+        ObjectSpace.undefine_finalizer(self)
+        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse, @mounted))
       end
     end
 

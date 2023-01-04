@@ -1,10 +1,10 @@
 AllCops:
-  TargetRubyVersion: 2.6
+  TargetRubyVersion: 2.7
   SuggestExtensions: false
   NewCops: enable
   Exclude:
-    - 'spec/**/*_spec.rb'
-    - 'spec/**/*_test.rb'
+    - 'spec/**/*.rb'
+    - 'vendor/bundle/**/*'
 
 # We're a FUSE filesystem we're going to see the perl syntax sometimes
 Style/SpecialGlobalVars:
@@ -34,5 +34,6 @@ Metrics/CyclomaticComplexity:
 Metrics/PerceivedComplexity:
   Max: 12
 
+# We use @!method in empty classes to document ffi functions
 Lint/EmptyClass:
   AllowComments: true

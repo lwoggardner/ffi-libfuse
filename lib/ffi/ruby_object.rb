@@ -32,6 +32,7 @@ module FFI
         return nil if object_id.zero?
 
         _ptr, obj = RubyObject.cache[object_id]
+        obj = obj.__getobj__ if obj.is_a?(WeakRef)
         obj
       end
     end
@@ -66,6 +67,8 @@ module FFI
         raise TypeError, "No RubyObject stored at #{ptr.address}" unless cache.key?(ptr.address.object_id)
 
         _ptr, obj = cache[ptr.get(:long, 0)]
+        # unwrap as the object gets used
+        obj = obj.__getobj__ if obj.is_a?(WeakRef)
         obj
       end
 
@@ -74,7 +77,7 @@ module FFI
       end
 
       def finalizer(*keys)
-        proc { keys.each { cache.delete(key) } }
+        proc { keys.each { |k| cache.delete(k) } }
       end
 
       def store(obj)

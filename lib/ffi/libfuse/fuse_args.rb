@@ -11,11 +11,16 @@ module FFI
     class FuseArgs < FFI::Struct
       layout :argc, :int, :argv, :pointer, :allocated, :int
 
-      # Create an fuse_args struct from command line options
+      # Create a fuse_args struct from command line options
       # @param [Array<String>] argv command line args
-      #   args[0] is expected to be program name
+      #
+      #   first arg is expected to be program name and is ignored by fuse_opt_parse
+      #   it is handled specially only in fuse_parse_cmdline (ie no subtype is given)
       # @return [FuseArgs]
+      # @example
+      #  FFI::Libfuse::FuseArgs.create($0,*ARGV)
       def self.create(*argv)
+        argv.unshift('ffi-libfuse') if argv.empty? || argv[0].start_with?('-')
         new.fill(*argv)
       end
 
@@ -34,13 +39,13 @@ module FFI
       end
 
       # @!attribute [r] argc
-      #  @return [Integer] count of args
+      # @return [Integer] count of args
       def argc
         self[:argc]
       end
 
       # @!attribute [r] argv
-      #  @return [Array<String>]
+      # @return [Array<String>] list of args
       def argv
         # noinspection RubyResolve
         self[:argv].get_array_of_pointer(0, argc).map(&:read_string)
@@ -53,7 +58,7 @@ module FFI
 
       # @!visibility private
       def inspect
-        "#{self.class.name} - #{%i[argc argv allocated].map { |m| [m, send(m)] }.to_h}"
+        "#{self.class.name} - #{%i[argc argv allocated].to_h { |m| [m, send(m)] }}"
       end
 
       # Add an arg to this arg list
@@ -72,6 +77,8 @@ module FFI
       #
       # Option parsing function
       #
+      # Wraps fuse_opt_parse() in ruby sugar and safety
+      #
       # @param [Hash<String,Symbol>] opts option schema
       #
       #  hash keys are a String template to match arguments against
@@ -80,7 +87,7 @@ module FFI
       #     beginning with "-o"
       #  2. "foo", "foo-bar", etc.  These match "-ofoo", "-ofoo-bar" or the relevant option in a comma separated option
       #     list
-      #  3. "bar=", "--foo=", etc.  These are variations of 1) and 2) which have a parameter
+      #  3. "bar=", "--foo=", etc.  These are variations of 1) and 2) which have a parameter value
       #  4. '%' Formats Not Supported (or needed for Ruby!)
       #  5. "-x ", etc.  Matches either "-xparam" or "-x param" as two separate arguments
       #  6. '%' Formats Not Supported
@@ -91,45 +98,49 @@ module FFI
       #  - :discard Argument is not passed to block, but behave as if the block returns :discard
       #  - any other value is yielded as 'key' property on matching argument
       #
-      # @param [Object] data an optional object that will be passed thru to the block
+      #  note that multiple templates can refer to the same key to support multiple option styles
       #
-      # @yieldparam [Object] data
-      # @yieldparam [String] arg is the whole argument or option including the parameter if exists.
-      #
-      #  A two-argument option ("-x foo") is always converted to single argument option of the form "-xfoo" before this
-      #  function is called.
-      #
-      #  Options of the form '-ofoo' are yielded without the '-o' prefix.
-      #
+      # @param [Object] data an optional object that will be passed to the block
+      # @param [Array<Symbol>|nil] ignore
+      #   the keys in this list will be kept without being passed to the block. pass nil to observe all keys
+      # @yield [key:, value:, match:, data:, out:]
+      #   block is called for each remaining arg
       # @yieldparam [Symbol] key determines why the processing function was called
       #
       #  - :unmatched for arguments that *do not match* any supplied option
       #  - :non_option for non-option arguments (after -- or not beginning with -)
       #  - with appropriate value from opts hash for a matching argument
-      #
-      # @yieldparam [FuseArgs] outargs can {add} or {insert} additional args as required
-      #
+      # @yieldparam [String|Boolean] value the option value or true for option without a value
+      # @yieldparam [String] match the matching template specification (ie a key in opts)
+      # @yieldparam [Object] data
+      # @yieldparam [FuseArgs] out can {add} or {insert} additional args as required
       #  eg. if one arg implies another
       #
       # @yieldreturn [Symbol] the argument action
       #
-      #  - :error            an error
-      #  - :keep             the current argument (to pass on further)
-      #  - :handled,:discard success and discard the current argument (ie because it has been handled)
-      #
-      # @return [nil|FuseArgs] nil on error, self on success
-      def parse!(opts, data = nil, &block)
-        # turn option value symbols into integers including special negative values from fuse_opt.h
+      #  - :error            an error, alternatively raise {Error}
+      #  - :keep             retain the current argument for further processing
+      #  - :handled,:discard remove the current argument from further processing
+      # @return [nil|self] nil on error otherwise self
+      def parse!(opts, data = nil, ignore: %i[non_option unmatched], &block)
+        ignore ||= []
+
+        # first create an array of unique symbols such that positive indexes are custom options and negative indexes are
+        # special values (see fuse_opt.h), ie so we can turn the integer received in fuse_opt_proc back into a symbol
         symbols = opts.values.uniq + %i[discard keep non_option unmatched]
 
+        # transform our symbol keys into integers suitable for FuseOpts
         int_opts = opts.transform_values do |v|
           %i[discard keep].include?(v) ? symbols.rindex(v) - symbols.size : symbols.index(v)
         end
 
-        fop = proc { |d, arg, key, outargs| fuse_opt_proc(d, arg, symbols[key], outargs, &block) }
-        result = Libfuse.fuse_opt_parse(self, data, int_opts, fop)
+        # keep track of opt templates by key so we extract parameter values from arg
+        param_opts, bool_opts = opts.keys.partition { |t| t =~ /(\s+|=)$/ }.map do |opt_list|
+          opt_list.group_by { |t| opts[t] }
+        end
 
-        result.zero? ? self : nil
+        fop = fuse_opt_proc(symbols, bool_opts, param_opts, ignore, &block)
+        Libfuse.fuse_opt_parse(self, data, int_opts, fop).zero? ? self : nil
       end
 
       private
@@ -137,15 +148,41 @@ module FFI
       # Valid return values from parse! block
       FUSE_OPT_PROC_RETURN = { error: -1, keep: 1, handled: 0, discard: 0 }.freeze
 
-      def fuse_opt_proc(data, arg, key, out, &block)
-        res = block.call(data, arg, key, out)
+      def fuse_opt_proc(symbols, bool_opts, param_opts, ignore, &block)
+        proc do |data, arg, key, out|
+          key = symbols[key]
+          next FUSE_OPT_PROC_RETURN.fetch(:keep) if ignore.include?(key)
+
+          match, value =
+            if %i[unmatched non_option].include?(key)
+              [nil, arg]
+            elsif bool_opts[key]&.include?(arg)
+              [arg, true]
+            elsif (opt = param_opts[key]&.detect { |t| arg.start_with?(t.rstrip) })
+              # Contrary to fuse_opt.h the separating space is not always stripped from these options
+              # https://github.com/libfuse/libfuse/issues/667
+              [opt, arg[opt.rstrip.length..].lstrip]
+            else
+              warn "FuseOptProc error - Cannot match option for #{arg}"
+              next FUSE_OPT_PROC_RETURN.fetch(:error)
+            end
+
+          safe_opt_proc(key: key, value: value, match: match, data: data, out: out, &block)
+        end
+      end
+
+      def safe_opt_proc(**args, &block)
+        res = block.call(**args)
         res.is_a?(Integer) ? res : FUSE_OPT_PROC_RETURN.fetch(res)
       rescue KeyError => e
         warn "FuseOptProc error - Unknown result  #{e.key}"
-        -1
-      rescue StandardError => e
-        warn "FuseOptProc error - #{e.class.name}:#{e.message}"
-        -1
+        FUSE_OPT_PROC_RETURN.fetch(:error)
+      rescue Error => e
+        warn "#{e.message}: #{args.select { |k, _v| %i[key value].include?(k) }}\n#{argv}"
+        FUSE_OPT_PROC_RETURN.fetch(:error)
+      rescue StandardError, ScriptError => e
+        warn "FuseOptProc error - #{e.class.name}:#{e.message}\n\t#{e.backtrace.join("\n\t")}"
+        FUSE_OPT_PROC_RETURN.fetch(:error)
       end
     end
 

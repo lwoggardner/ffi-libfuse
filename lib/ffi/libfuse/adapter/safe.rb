@@ -10,7 +10,7 @@ module FFI
         # @!visibility private
         def fuse_wrappers(*wrappers)
           wrappers << {
-            wrapper: proc { |fm, *args, **_, &b| Safe.safe_callback(fm, *args, &b) },
+            wrapper: proc { |fm, *args, **_, &b| Safe.safe_callback(fm, *args, default_errno: default_errno, &b) },
             excludes: %i[init destroy]
           }
           return wrappers unless defined?(super)
@@ -18,8 +18,10 @@ module FFI
           super(*wrappers)
         end
 
-        # Callbacks that are expected to return meaningful positive integers
-        MEANINGFUL_RETURN = %i[read write write_buf lseek copy_file_range getxattr listxattr].freeze
+        # @return [Integer] the default errno.  ENOTRECOVERABLE unless overridden
+        def default_errno
+          defined?(super) ? super : Errno::ENOTRECOVERABLE::Errno
+        end
 
         module_function
 
@@ -27,30 +29,29 @@ module FFI
         #
         # @yieldreturn [SystemCallError] expected callback errors rescued to return equivalent -ve errno value
         # @yieldreturn [StandardError,ScriptError] unexpected callback errors are rescued
-        #   to return -Errno::ENOTRECOVERABLE after emitting backtrace to #warn
+        #   to return -ve {default_errno} after emitting backtrace to #warn
         #
         # @yieldreturn [Integer]
         #
         #   * -ve values returned directly
-        #   * +ve values returned directly for fuse_methods in {MEANINGFUL_RETURN} list
+        #   * +ve values returned directly for fuse_methods in {FuseOperations.MEANINGFUL_RETURN} list
         #   * otherwise returns 0
         #
         # @yieldreturn [Object] always returns 0 if no exception is raised
         #
-        def safe_callback(fuse_method, *args)
+        def safe_callback(fuse_method, *args, default_errno: Errno::ENOTRECOVERABLE::Errno)
           result = yield(*args)
 
-          return 0 unless result.is_a?(Integer)
-          return 0 unless result.negative? || MEANINGFUL_RETURN.include?(fuse_method)
+          return result.to_i if FuseOperations.meaningful_return?(fuse_method)
 
-          result
+          0
         rescue SystemCallError => e
           -e.errno
         rescue StandardError, ScriptError => e
           # rubocop:disable Layout/LineLength
-          warn "FFI::libfuse error in callback #{fuse_method}: #{e.class.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+          warn ["FFI::Libfuse error in #{fuse_method}", *e.backtrace.reverse, "#{e.class.name}:#{e.message}"].join("\n\t")
           # rubocop:enable Layout/LineLength
-          -Errno::ENOTRECOVERABLE::Errno
+          -default_errno.abs
         end
       end
     end

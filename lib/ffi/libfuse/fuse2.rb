@@ -20,9 +20,9 @@ module FFI
     attach_function :fuse_chan_fd, [:chan], :int
     attach_function :fuse_read_cmd, [:fuse], :cmd, blocking: true
     attach_function :fuse_process_cmd, %i[fuse cmd], :void, blocking: true
-    attach_function :fuse_exited2, :fuse_exited, [:fuse], :int
-    attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void
+    attach_function :fuse_unmount2, :fuse_unmount, %i[string chan], :void, blocking: true
     attach_function :fuse_loop_mt2, :fuse_loop_mt, [:fuse], :int, blocking: true
+    attach_function :fuse_exited2, :fuse_exited, [:fuse], :int
 
     class << self
       # @!visibility private
@@ -62,28 +62,22 @@ module FFI
           foreground = foreground_ptr.get(:int, 0) == 1
 
           result = { mountpoint: mountpoint, single_thread: !multi_thread, foreground: foreground }
-          args.parse!(Main::STANDARD_OPTIONS, [result, handler]) { |*proc_args| fuse_opt_proc(*proc_args) }
+          args.parse!(Main::STANDARD_OPTIONS, [result, handler]) { |**op_args| fuse_opt_proc(**op_args) }
           result
         end
 
         # Handle standard custom args
-        def fuse_opt_proc(custom, _arg, key, _outargs)
-          return :keep if %i[unmatched non_option].include?(key)
-
-          run_args, handler = custom
+        def fuse_opt_proc(data:, key:, **)
+          run_args, handler = data
           case key
           when :show_help
             warn Main::HELP
-            if handler.respond_to?(:fuse_help) && (help = handler.fuse_help)
-              warn help
-            end
+            warn handler.fuse_help if handler.respond_to?(:fuse_help)
           when :debug
             handler.fuse_debug(true) if handler.respond_to?(:fuse_debug)
           when :show_version
             warn Main.version
-            if handler.respond_to?(:fuse_version) && (version = handler.fuse_version)
-              warn version
-            end
+            warn handler.fuse_version if handler.respond_to?(:fuse_version)
           else
             return :keep
           end
@@ -103,7 +97,7 @@ module FFI
 
       # Have we requested an unmount (note not actually checking if OS sees the fs as mounted)
       def mounted?
-        @fuse && Libfuse.fuse_exited2(@fuse).zero?
+        @fuse && !fuse_exited?
       end
 
       def initialize(mountpoint, args, operations, private_data)
@@ -113,17 +107,15 @@ module FFI
         # Hang on to our ops and private data
         @operations = operations
 
-        # Note this outputs the module args.
-        @ch = Libfuse.fuse_mount2(@mountpoint, args)
+        # Note this outputs the module args. OSX cannot handle null mountpoint with -h/-V
+        @ch = Libfuse.fuse_mount2(@mountpoint || '', args)
         @ch = nil if @ch&.null?
         if @ch
           @fuse = Libfuse.fuse_new2(@ch, args, @operations, @operations.size, private_data)
           @fuse = nil if @fuse&.null?
         end
       ensure
-        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destory
-        # as it's weakref will have been GC'd
-        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse, @mountpoint, @ch))
+        define_finalizer
       end
 
       # [IO] /dev/fuse file descriptor for use with IO.select
@@ -132,12 +124,16 @@ module FFI
         @io ||= ::IO.for_fd(Libfuse.fuse_chan_fd(@ch), 'r', autoclose: false)
       end
 
-      def process
-        cmd = Libfuse.fuse_read_cmd(@fuse)
-        Libfuse.fuse_process_cmd(@fuse, cmd) if cmd && !cmd.null?
+      def fuse_exited?
+        !Libfuse.fuse_exited2(@fuse).zero?
+      end
 
-        # return true unless fuse has exited.
-        Libfuse.fuse_exited2(@fuse).zero?
+      def fuse_process
+        cmd = Libfuse.fuse_read_cmd(@fuse)
+        return false if cmd.null?
+
+        Libfuse.fuse_process_cmd(@fuse, cmd)
+        true
       end
 
       private
@@ -147,9 +143,21 @@ module FFI
       end
 
       def unmount
+        return unless @ch
+
         c = @ch
         @ch = nil
-        Libfuse.fuse_unmount2(mountpoint, c) if c
+        Libfuse.fuse_unmount2(mountpoint, c)
+      ensure
+        # Can't unmount twice
+        define_finalizer
+      end
+
+      def define_finalizer
+        # if we unmount/destroy in the finalizer then the private_data object cannot be used in destory
+        # as it's weakref will have been GC'd
+        ObjectSpace.undefine_finalizer(self)
+        ObjectSpace.define_finalizer(self, self.class.finalize_fuse(@fuse, @mountpoint, @ch))
       end
     end
 
