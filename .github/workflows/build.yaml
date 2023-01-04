@@ -1,10 +1,13 @@
 name: Build
 
 on:
+  workflow_call: # before Tag/Release
+  pull_request:
   push:
-    # TODO: rc* branches from this workflow (they will use the deploy workflow otherwise reserved for tag
-    branches:
+    branches:  # branches that are not releasable
       - "**"
+      - "!main"
+      - "!rc*"
 jobs:
   build:
     strategy:

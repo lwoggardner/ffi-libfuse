@@ -1,0 +1,29 @@
+name: Release Please
+
+on:
+  push:
+    branches: # Only run on main and release candidate branches
+      - main
+      - rc*
+
+jobs:
+  # NOTE: call-build not required because the source PRs trigger build
+  #   and release-please PRs only change version.rb and changelog.md
+  #call-build: # build all platforms
+  #  uses: ./.github/workflows/build.yaml
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: GoogleCloudPlatform/release-please-action@v3
+        name: release-please-pr
+        with:
+          skip-github-release: true # Only release pr - do not create github releases
+          release-type: ruby
+          package-name: ffi-libfuse
+          version-file: "lib/ffi/libfuse/version.rb"
+          bump-minor-pre-major: true
+          default_branch: ${{ github.ref_name }} # ie raise PRs to the branch we are running against
+    outputs:
+      release_created: ${{ steps.release-please-pr.outputs.releases_created }}
+# Since we are skipping github releases we might not see a 'releases_created'
+# If not see if we can detect something about the commit (label or message)

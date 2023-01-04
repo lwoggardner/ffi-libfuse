@@ -20,15 +20,15 @@ module FFI
         match ? 'tag' : 'branch'
       end
 
-      run_number = env.fetch('GITHUB_RUN_NUMBER', nil)
+      ref_name = ref_name.tr('//_-', '')
 
       case ref_type
       when 'tag'
-        ref_name =~ /^v\d+\.\d+\.\d+/ ? [ref_name[1..], run_number] : [version, ref_name, run_number]
+        ref_name =~ /^v\d+\.\d+\.\d+/ ? [ref_name[1..]] : [version, ref_name]
       when 'branch'
-        ref_name == main_branch ? [version] : [version, ref_name, run_number]
+        ref_name == main_branch ? [version] : [version, ref_name]
       else
-        [version, ref_name, run_number]
+        [version, ref_name]
       end.compact.join('.')
     end
 

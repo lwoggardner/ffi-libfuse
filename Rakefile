@@ -55,58 +55,8 @@ end
 desc 'Regenerate documentation'
 task doc: %i[samples yard]
 
+# Workflow: Build on push to any branch
 task default: %i[version rubocop bundle:audit:check test doc]
-
-# CI/CD actions
-#   push/PR to branch runs default task against a matrix of OS, ruby versions and Fuse2/Fuse3
-#   push to tag vX.Y.Z(.*) publish to ruby gems
-#   bump patch version
-#   reject changes to lib/ffi/libfuse/version.rb except on main
-#   reject changes to changelog except on main
-
-# Manual flow
-# * Merge PRs
-# * Update ChangeLog
-# * Bump major/minor version if necessary
-# * Tag + Release to ruby gems
-# * Bump patch version
-
-# Testing Release workflow (any branch other than main)
-
-# Update major/minor version in lib/ffi-libfuse/version.rb if necessary (as per semantic versioning)
-# Commit/Push and ensure CI builds are passing
-# rake tag  to check, rake tag --no-verbose
-# gem install gem-release
-# TODO: Make ^^ a workflow-dispatch (manual from github console) action
-
-# Run from 'Tag' workflow (which is workflow-dispatch type - ie run manually) against a branch
-# options are space separated rake tag[--no-verbose --color]
-task :tag, [:options] => %i[clobber default] do |_t, args|
-  # Expect to tag from a branch
-  args.with_defaults(options: '--pretend')
-  options = args[:options].strip.split(/\s+/)
-  Bundler.with_unbundled_env do
-    # tag is derived from GEM_VERSION
-    system("gem tag -p #{options.uniq.join(' ')}") || raise('Tag failed')
-    # bump uses VERSION (and directly updates lib/<gem>/version.rb)
-    options << '--skip-ci' # we don't need to rerun tests on this bump
-    options << '--pretend' unless GEM::Version.new(FFI::Libfuse::GEM_VERSION).prerelease?
-    system("gem bump -v patch -p --skip-ci #{options.uniq.join(' ')}") || raise('Bump failed')
-  end
-end
-
-# Run from the 'Publish' workflow run against tags matching v\d.\d.\d[.pre]
-task :publish, [:options] => %i[version] do |_t, args|
-  # Expect to publish from a tag ref
-  # If publishing from a branch then we want to fail?
-  # No point including a build number since the tag commit includes everything used to release the gem
-  args.with_defaults(options: ENV['GITHUB_WORKFLOW'] == 'Publish' ? '--no-verbose' : '--pretend')
-  options = args[:options].strip
-
-  Bundler.with_unbundled_env do
-    system("gem release #{options}") || raise('Release failed')
-  end
-end
 
 desc 'Version info'
 task :version do
@@ -119,3 +69,6 @@ task :version do
 
   puts msg
 end
+
+require 'bundler/gem_tasks'
+task release: %i[version]
