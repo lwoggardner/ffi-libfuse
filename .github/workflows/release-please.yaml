@@ -22,7 +22,7 @@ jobs:
           package-name: ffi-libfuse
           version-file: "lib/ffi/libfuse/version.rb"
           bump-minor-pre-major: true
-          default_branch: ${{ github.ref_name }} # ie raise PRs to the branch we are running against
+          default-branch: ${{ github.ref_name }} # ie raise PRs to the branch we are running against
     outputs:
       release_created: ${{ steps.release-please-pr.outputs.releases_created }}
 # Since we are skipping github releases we might not see a 'releases_created'
