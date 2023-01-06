@@ -15,6 +15,10 @@ on:
       RUBYGEMS_API_KEY:
         required: true
 jobs:
+  debug-github:
+    - run: echo "${JSON}"
+      env:
+        JSON: ${{ toJSON(github.context) }}
   call-build:  # build all platforms if this is a manual call
     uses: ./.github/workflows/build.yaml
     if: github.event_name == 'workflow_dispatch'
