@@ -12,8 +12,6 @@ Gemfile.lock
 !.rubocop.yml
 !.yardopts
 !.gitignore
-!.travis.yml
-
 !/.github/
 !/.github/scripts/
 !/.github/scripts/*

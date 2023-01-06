@@ -17,7 +17,7 @@ Vagrant.configure('2') do |config|
          apt-get install -y gnupg2 gcc make ruby ruby-dev libffi-dev ruby-bundler #{fuse_ver} lib#{fuse_ver}-dev
         SHELL
         dist_config.vm.provision :shell, path: 'vagrant/install-rvm.sh', args: 'stable', privileged: false
-        # TODO: extract rubies from travis.yml
+        # TODO: extract rubies from github workflow
         %w[2.7].each do |v|
           dist_config.vm.provision :shell, path: 'vagrant/install-ruby.sh', args: [v, 'bundler'], privileged: false
         end
