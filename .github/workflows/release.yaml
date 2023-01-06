@@ -16,6 +16,8 @@ on:
         required: true
 jobs:
   debug-github:
+    runs_on: ubuntu-latest
+    steps:
     - run: echo "${JSON}"
       env:
         JSON: ${{ toJSON(github.context) }}
