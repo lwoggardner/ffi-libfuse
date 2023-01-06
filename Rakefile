@@ -89,13 +89,13 @@ task :release, %i[options] => %i[version] do |_t, args|
   ref_type = FFI::Libfuse::GIT_REF_TYPE
   ref_name = FFI::Libfuse::GIT_REF_NAME
   expected_tag = "v#{FFI::Libfuse::GEM_VERSION}"
-  event_name = ENV.fetch('GITHUB_EVENT_NAME', 'workflow-dispatch')
+  event_name = ENV.fetch('GITHUB_EVENT_NAME', 'workflow_dispatch')
   rp_tag_name = ENV.fetch('RELEASE_PLEASE_TAG_NAME', '')
 
   raise "Cannot release from git ref: #{ref_type}/#{ref_name}" unless %i[branch tag].include?(ref_type)
 
   # workflow call from release-please PR merge, release-please has already tagged, make sure it matches
-  if ref_type == :branch && event_name != 'workflow-dispatch' && rp_tag_name != expected_tag
+  if ref_type == :branch && event_name != 'workflow_dispatch' && rp_tag_name != expected_tag
     raise "Unexpected release-please tag #{rp_tag_name} vs #{expected_tag}"
   end
 
@@ -103,7 +103,7 @@ task :release, %i[options] => %i[version] do |_t, args|
   raise "Unexpected tag #{ref_name} vs #{expected_tag}" if ref_type == :tag &&  ref_name == expected_tag
 
   # If this is a manual call on a branch we just tag which will re-invoke release via github action
-  actions = [ref_type == :branch && event_name == 'workflow-dispatch' ? :tag : :release]
+  actions = [ref_type == :branch && event_name == 'workflow_dispatch' ? :tag : :release]
   result << :bump if ref_type == :branch && !Gem::Version.new(FFI::Libfuse::GEM_VERSION).prerelease?
 
   args.with_defaults(options: '--pretend') # use [--no-verbose] to force
