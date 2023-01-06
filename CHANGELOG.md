@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.0](https://github.com/lwoggardner/ffi-libfuse/compare/v0.0.1...v0.1.0) (2023-01-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Support downstream RFuse/RFuseFS
+
+### Features
+
+* FFI::Libfuse::Filesystem - base filesystems ([5b19005](https://github.com/lwoggardner/ffi-libfuse/commit/5b19005c4b1ff2237b85c4854f481ea6e3625c62))
+
+
+### Code Refactoring
+
+* Support downstream RFuse/RFuseFS ([e6b3fb5](https://github.com/lwoggardner/ffi-libfuse/commit/e6b3fb552b8881dbf28f014617b7412f2542aaa3))
+
 ## [0.2.0](https://github.com/lwoggardner/ffi-libfuse/compare/v0.0.1...v0.2.0) (2023-01-04)
 
 
