@@ -21,9 +21,9 @@ jobs:
     - run: echo "${JSON}"
       env:
         JSON: ${{ toJSON(github) }}
-  #call-build:  # build all platforms if this is a manual call
-  #  uses: ./.github/workflows/build.yaml
-  #  if: github.event_name == 'workflow_dispatch'
+  call-build:  # build all platforms if this is a manual call
+    uses: ./.github/workflows/build.yaml
+    if: github.event_name == 'TODO!!!!workflow_dispatch'
   release:
     needs: call-build
     runs-on: ubuntu-latest
