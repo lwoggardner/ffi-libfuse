@@ -26,7 +26,7 @@ jobs:
     if: github.event_name == 'TODO!!!!workflow_dispatch'
   release:
     needs: call-build
-    if: jobs.call-build.result == 'success' || jobs.call-build.result == 'skipped'
+    if: always() && (needs.call-build.result == 'success' || needs.call-build.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
