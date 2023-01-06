@@ -10,9 +10,9 @@ require 'sys/filesystem'
 # * We understand how Fuse maps file operations to filesystem callbacks
 # * Other bugs and errors
 # It is not intended to test that Fuse itself works
-describe 'MockFS' do
+describe "MockFS #{FFI::Libfuse::FUSE_VERSION}" do
 
-  include LibfuseHelper
+  include FFI::Libfuse::TestHelper
 
   let(:mock_fs) { MockFS.new }
   let(:mock) { mock_fs.mock }
@@ -142,7 +142,7 @@ describe 'MockFS' do
       end
 
       with_fuse(mock_fs) do |mp|
-        File.open("#{mp}/testDirectory/newfile", 'w', 0o644) { |_f| }
+        File.open("#{mp}/testDirectory/newfile", 'w', 0o644) { |_f|  }
       end
     end
 
@@ -196,11 +196,15 @@ describe 'MockFS' do
     end
 
     it 'should report filesystem statistics' do
+      # TODO: on MacOS statfs always applies to the root path
+      #       and there is the statfs_x function that uses 64 bit inode structure
+      skip 'MacOS todo statvfs' if mac_fuse?
+
       mock_fs.paths = { '/testDir' => stat_as_dir }
       mock_fs.expect_file('/testDir/statfs', size: 12)
 
       mock_fs.expect(:statfs, 0) do |_path, statfs|
-        statfs.fill(statvfs)
+        statfs.fill(**statvfs)
         0
       end
 

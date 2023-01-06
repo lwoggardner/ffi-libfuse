@@ -9,12 +9,26 @@ module FFI
     # Controls the main run loop for a FUSE filesystem
     module Main
       class << self
+        # Builds default argument list for #{fuse_main} regardless of being called directly or from mount.fuse3
+        #
+        # @param [Array<String>] extra_args additional arguments to add to $0 and *ARGV
+        # @return [Array<String>]
+        # @see https://github.com/libfuse/libfuse/issues/621
+        def default_args(*extra_args)
+          args = ARGV.dup
+
+          # If called from mount.fuse3 we already have a 'source' argument which should go at args[0]
+          args.unshift($0) unless args.size >= 2 && args[0..1].all? { |a| !a.start_with?('-') }
+          args.concat(extra_args)
+        end
+
         # Main function of FUSE
         #
         # This function:
         #
         # - parses command line options - see {fuse_parse_cmdline}
-        #   and exits immediately if help or version options were processed
+        #   exiting immediately if help or version options were processed
+        # - calls {#fuse_debug}, {#fuse_options}, {#fuse_configure} if implemented by operations
         # - installs signal handlers for INT, HUP, TERM to unmount and exit filesystem
         # - installs custom signal handlers if operations implements {fuse_traps}
         # - creates a fuse handle mounted with registered operations - see {fuse_create}
@@ -22,7 +36,7 @@ module FFI
         #
         # @param [Array<String>] argv mount.fuse arguments
         #   expects progname, mountpoint, options....
-        # @param [FuseArgs] args
+        # @param [FuseArgs|Array<String>] args
         #   alternatively constructed args
         # @param [Object|FuseOperations] operations
         #  something that responds to the fuse callbacks and optionally our abstract configuration methods
@@ -30,12 +44,17 @@ module FFI
         #  any data to be made available to the {FuseOperations#init} callback
         #
         # @return [Integer] suitable for process exit code
-        def fuse_main(*argv, operations:, args: argv, private_data: nil)
+        def fuse_main(*argv, operations:, args: argv.any? ? argv : default_args, private_data: nil)
           run_args = fuse_parse_cmdline(args: args, handler: operations)
           return 2 unless run_args
 
           fuse_args = run_args.delete(:args)
           mountpoint = run_args.delete(:mountpoint)
+
+          return 3 unless fuse_configure(operations: operations, **run_args)
+
+          warn "FuseCreate: mountpoint: #{mountpoint}, args: [#{fuse_args.argv.join(' ')}]" if run_args[:debug]
+          warn "FuseRun: #{run_args}" if run_args[:debug]
 
           fuse = fuse_create(mountpoint, args: fuse_args, operations: operations, private_data: private_data)
 
@@ -44,52 +63,43 @@ module FFI
 
           return unless fuse
 
-          warn run_args.to_s if run_args[:debug]
-
           fuse.run(**run_args)
         end
+        alias main fuse_main
 
         # Parse command line arguments
         #
         # - parses standard command line options (-d -s -h -V)
         #   will call {fuse_debug}, {fuse_version}, {fuse_help} if implemented by handler
-        # - parses custom options if handler implements {fuse_options} and {fuse_opt_proc}
+        # - calls {fuse_options} for custom option processing if implemented by handler
         # - records signal handlers if operations implements {fuse_traps}
         # - parses standard fuse mount options
         #
         # @param [Array<String>] argv mount.fuse arguments
-        #   expects progname, [fsname,] mountpoint, options.... from mount.fuse3
+        #   expects progname, mountpoint, options....
         # @param [FuseArgs] args
         #   alternatively constructed args
         # @param [Object] handler
         #   something that responds to our abstract configuration methods
-        # @param [Object] private_data passed to handler.fuse_opt_proc
-        #
         # @return [Hash<Symbol,Object>]
-        #   * fsname [String]: the fsspec from /etc/fstab
         #   * mountpoint [String]: the mountpoint argument
         #   * args [FuseArgs]: remaining fuse_args to pass to {fuse_create}
         #   * show_help [Boolean]: -h or --help
         #   * show_version [Boolean]: -v or --version
         #   * debug [Boolean]: -d
         #   * others are options to pass to {FuseCommon#run}
-        def fuse_parse_cmdline(*argv, args: argv, handler: nil, private_data: nil)
+        def fuse_parse_cmdline(*argv, args: argv.any? ? argv : default_args, handler: nil)
           args = fuse_init_args(args)
 
           # Parse args and print cmdline help
           run_args = Fuse.parse_cmdline(args, handler: handler)
+          return nil unless run_args
 
-          # process custom options
-          if %i[fuse_options fuse_opt_proc].all? { |m| handler.respond_to?(m) }
-            parse_ok = args.parse!(handler.fuse_options, private_data) do |*p_args|
-              handler.fuse_opt_proc(*p_args)
-            end
-            return unless parse_ok
-          end
+          return nil if handler.respond_to?(:fuse_options) && !handler.fuse_options(args)
 
           run_args[:traps] = handler.fuse_traps if handler.respond_to?(:fuse_traps)
 
-          args.parse!(RUN_OPTIONS, run_args) { |*opt_args| hash_opt_proc(*opt_args, discard: %i[native max_threads]) }
+          return nil unless parse_run_options(args, run_args)
 
           run_args[:args] = args
           run_args
@@ -97,40 +107,41 @@ module FFI
 
         # @return [FuseCommon|nil] the mounted filesystem or nil if not mounted
         def fuse_create(mountpoint, *argv, operations:, args: nil, private_data: nil)
-          args = fuse_init_args(args || argv.unshift(mountpoint))
+          args = fuse_init_args(args || argv)
 
           operations = FuseOperations.new(delegate: operations) unless operations.is_a?(FuseOperations)
 
-          fuse = Fuse.new(mountpoint, args, operations, private_data)
+          fuse = Fuse.new(mountpoint.to_s, args, operations, private_data)
           fuse if fuse.mounted?
         end
 
-        # Helper fuse_opt_proc function to capture options into a hash
-        #
-        # See {FuseArgs.parse!}
-        def hash_opt_proc(hash, arg, key, _out, discard: [])
-          return :keep if %i[unmatched non_option].include?(key)
+        # @!visibility private
+        def fuse_configure(operations:, show_help: false, show_version: false, **_)
+          return true unless operations.respond_to?(:fuse_configure) && !show_help && !show_version
 
-          hash[key] = arg =~ /=/ ? arg.split('=', 2).last : true
-          discard.include?(key) ? :discard : :keep
+          # Provide sensible values for FuseContext in case this is referenced during configure
+          FFI::Libfuse::FuseContext.overrides do
+            operations.fuse_configure
+            true
+          rescue Error => e
+            warn e.message
+            false
+          rescue StandardError, ScriptError => e
+            warn "#{e.class.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+            false
+          end
         end
 
         # @!visibility private
-
-        # Version text
         def version
           "#{name}: #{VERSION}"
         end
 
+        private
+
         def fuse_init_args(args)
           if args.is_a?(Array)
-            args = args.map(&:to_s) # handle mountpoint as Pathname etc..
-
-            # https://github.com/libfuse/libfuse/issues/621 handle "source" field sent from /etc/fstab via mount.fuse3
-            # if arg[1] and arg[2] are both non option fields then replace arg1 with -ofsname=<arg1>
-            unless args.size <= 2 || args[1]&.start_with?('-') || args[2]&.start_with?('-')
-              args[1] = "-ofsname=#{args[1]}"
-            end
+            warn "FuseArgs: #{args.join(' ')}" if args.include?('-d')
             args = FuseArgs.create(*args)
           end
 
@@ -138,23 +149,52 @@ module FFI
 
           raise ArgumentError "fuse main args: must be Array<String> or #{FuseArgs.class.name}"
         end
+
+        def parse_run_options(args, run_args)
+          args.parse!(RUN_OPTIONS) do |key:, value:, **|
+            run_args[key] = value
+            next :keep if (STANDARD_OPTIONS.values + %i[remember]).include?(key)
+
+            :discard
+          end
+        end
       end
 
       # @!group Abstract Configuration
 
-      # @!method fuse_options
+      # @!method fuse_options(args)
       #  @abstract
-      #  @return [Hash] custom option schema
+      #  Called to allow filesystem to handle custom options and observe standard mount options #
+      #  @param [FuseArgs] args
+      #  @return [Boolean] true if args parsed successfully
       #  @see FuseArgs#parse!
-
-      # @!method fuse_opt_proc(data,arg,key,out)
-      #  @abstract
-      #  Process custom options
-      #  @see FuseArgs#parse!
+      #  @example
+      #    OPTIONS = { 'config=' => :config, '-c ' => :config }
+      #    def fuse_options(args)
+      #       args.parse!(OPTIONS) do |key:, value:, out:, **opts|
+      #
+      #          # raise errors for invalid config
+      #          raise FFI::Libfuse::FuseArgs::Error, "Invalid config" unless valid_config?(key,value)
+      #
+      #          # Configure the file system
+      #          @config = value if key == :config
+      #
+      #          #Optionally manipulate other arguments for fuse_mount() based on the current argument and state
+      #          out.add('-oopt=val')
+      #
+      #          # Custom options must be marked :handled otherwise fuse_mount() will fail with unknown arguments
+      #          :handled
+      #       end
+      #    end
 
       # @!method fuse_traps
       #  @abstract
-      #  @return [Hash] map of signal name or number to signal handler as per Signal.trap
+      #  @return [Hash<String|Symbol|Integer,String|Proc>]
+      #    map of signal name or number to signal handler as per Signal.trap
+      #  @example
+      #    def fuse_traps
+      #      { HUP: ->() { reload() }}
+      #    end
 
       # @!method fuse_version
       #  @abstract
@@ -162,12 +202,20 @@ module FFI
 
       # @!method fuse_help
       #  @abstract
-      #  @return [String] help text to explain custom options to show with -h option
+      #  Called as part of generating output for the -h option
+      #  @return [String] help text to explain custom options
 
       # @!method fuse_debug(enabled)
       #  @abstract
-      #  Indicate to the filesystem whether debugging option is in use.
+      #  Called to indicate to the filesystem whether debugging option is in use.
       #  @param [Boolean] enabled if -d option is in use
+      #  @return [void]
+
+      # @!method fuse_configure
+      #  @abstract
+      #  Called immediately before the filesystem is mounted, after options have been parsed
+      #
+      #  @raise [Error] to prevent the mount from proceeding
       #  @return [void]
 
       # @!endgroup

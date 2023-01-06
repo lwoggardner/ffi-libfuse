@@ -15,9 +15,20 @@ module FFI
       base[:umask] = :mode_t if FUSE_VERSION >= 28
       layout base
 
-      ffi_attr_reader(:uid, :gid, :pid, :mode, :private_data)
+      ffi_attr_reader(*members, simple: false) do
+        m = __method__
 
-      ffi_attr_reader(:umask) if FUSE_VERSION >= 28
+        # Use overrides if they are available, or the default context if the underlying memory is invalid
+        FuseContext.overrides[m] || (null? ? DEFAULT_CONTEXT[m] : self[m])
+      end
+
+      if FUSE_VERSION < 28
+        attr_writer :umask
+
+        def umask
+          @umask ||= File.umask
+        end
+      end
 
       # @!attribute [r] uid
       #   @return [Integer] user id of the calling process
@@ -32,7 +43,9 @@ module FFI
       #  @return [Object] private filesystem data
       #  @see FuseOperations#init
 
-      # @!attribute [r] umask
+      # @!attribute [rw] umask
+      #
+      #  Writable only for Fuse version < 28
       #  @return [Integer] umask of the calling process
 
       # @return [Boolean]
@@ -48,8 +61,37 @@ module FFI
         Libfuse.raise_interrupt
       end
 
+      # @param [Integer] perms
+      # @return perms adjusted by {#umask}
+      def mask(perms)
+        perms & ~umask
+      end
+
+      DEFAULT_CONTEXT = { uid: Process.uid, gid: Process.gid, umask: File.umask }.freeze
+
       class << self
+        # @overload overrides(hash)
+        #  @param[Hash<Symbol,Object|nil] hash a list of override values that will apply to this context
+        #
+        #    If not set uid, gid, umask will be overridden from the current process, which is useful if
+        #    {FuseContext} is referenced from outside of a fuse callback
+        #  @yield [] executes block with the given hash overriding FuseContext values
+        #  @return [Object] the result of the block
+        # @overload overrides()
+        #   @return [Hash] current thread local overrides for FuseContext
+        def overrides(hash = nil)
+          return Thread.current[:fuse_context_overrides] ||= {} unless block_given?
+
+          begin
+            Thread.current[:fuse_context_overrides] = hash || DEFAULT_CONTEXT
+            yield
+          ensure
+            Thread.current[:fuse_context_overrides] = nil
+          end
+        end
+
         # @return [FuseContext] the context for the current filesystem operation
+        # @note if called outside a fuse callback the native {FuseContext} will have invalid values. See {overrides}
         def fuse_get_context
           Libfuse.fuse_get_context
         end

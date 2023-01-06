@@ -25,5 +25,14 @@ module FFI
 
     # Socket
     S_IFSOCK = 0o140000
+
+    # SetUID
+    S_ISUID  = 0o004000
+
+    # SetGID
+    S_ISGID  = 0o002000
+
+    # Sticky Bit
+    S_ISVTX  = 0o001000
   end
 end

@@ -1,0 +1,35 @@
+name: Build
+
+on:
+  workflow_call: # before Tag/Release
+  pull_request:
+    branches:
+      - "main"
+  push:
+    branches:  # branches that are not releasable
+      - "**"
+      - "!main"
+jobs:
+  build:
+    strategy:
+      matrix:
+        ruby-version: ['2.7', '3.0', '3.1', '3.2']
+        os: ['ubuntu-latest'] # mac-os when/if Macfuse can be deployed on CI images
+        fuse_pkg: ['fuse','fuse3']
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Preinstall
+        env:
+          FUSE_PKG: ${{ matrix.fuse_pkg }}
+        run: .github/scripts/pre_install_${{runner.os}}.sh
+      - name: Set up Ruby ${{ matrix.ruby-version }}
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+      - name: Run tests
+        env:
+          TERM: color # Pretty spec output
+        run: bundle exec rake
