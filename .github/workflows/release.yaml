@@ -17,7 +17,7 @@ on:
 jobs:
   call-build:  # build all platforms if this is a manual call
     uses: ./.github/workflows/build.yaml
-    if: github.event_name == 'workflow-dispatch'
+    if: github.event_name == 'workflow_dispatch'
   release:
     needs: call-build
     runs-on: ubuntu-latest

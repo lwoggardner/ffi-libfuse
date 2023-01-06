@@ -13,6 +13,7 @@ jobs:
   call-build: # build all platforms
     uses: ./.github/workflows/build.yaml
   release-please:
+    needs: call-build
     runs-on: ubuntu-latest
     steps:
       - uses: GoogleCloudPlatform/release-please-action@v3
