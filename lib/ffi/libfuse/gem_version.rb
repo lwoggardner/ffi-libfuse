@@ -15,8 +15,8 @@ module FFI
     GIT_REF_TYPES = { 'heads' => :branch, 'tags' => :tag, 'pull' => :pull }.freeze
 
     def self.git_ref(env: ENV)
-      ref = env.fetch('GITHUB_REF') do
-        # get branch ref, or detached head ref
+      ref = env.fetch('GIT_REF') do
+        # get branch ref, or detached head ref to tag
         `git symbolic-ref HEAD 2>/dev/null || git name-rev HEAD | awk '{ gsub(/[\\^~@].*$/,"",$2); printf("refs/%s\\n",$2)}'`.strip # rubocop:disable Layout/LineLength
       rescue StandardError
         nil
@@ -40,7 +40,7 @@ module FFI
         when :pull
           pr_number, merge, _rest = ref_name.split('/')
           # GITHUB_BASE_REF	The name of the base ref or target branch of the pull request in a workflow run
-          base_ref = env.fetch('GITHUB_BASE_REF', 'undefined')
+          base_ref = env.fetch('GIT_BASE_REF', 'undefined')
           [version, base_ref, "#{merge}#{pr_number}"]
         else
           [version, 'pre', ref_name]

@@ -39,4 +39,6 @@ jobs:
   call-release:
     needs: release-please
     if: fromJSON(needs.release-please.outputs).releases_created
-    uses: ./.github/workflows/release.yaml@${{fromJSON(needs.release-please.outputs).tag_name}}
+    uses: ./.github/workflows/release.yaml
+    with:
+      ref: "refs/tags/${{fromJSON(needs.release-please.outputs).tag_name}}"
