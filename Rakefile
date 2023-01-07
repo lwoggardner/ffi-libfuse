@@ -75,16 +75,16 @@ task 'release:guard_clean' => %i[release_guard_tag]
 
 task release_guard_tag: [:version] do
   gem_version = FFI::Libfuse::GEM_VERSION
-  tag = "v#{gem_version}"
+  gem_version_tag = "v#{gem_version}"
   git_ref_type = FFI::Libfuse::GIT_REF_TYPE
   git_ref_name = FFI::Libfuse::GIT_REF_NAME
 
-  # If we're on a tag then tag must be THIS tag
-  if git_ref_type == :tag && gem_version != "v#{git_ref_name}"
-    raise "Checkout is tag #{git_ref_name} but does not match the gem version #{gem_version}"
+  # If we're on a tag then tag must be tag for this version
+  if git_ref_type == :tag && git_ref_name != gem_version_tag
+    raise "Checkout is tag '#{git_ref_name}' but does not match the gem version '#{gem_version}'"
   end
 
-  # BASH expression - tag does not exist OR exists and points at HEAD
-  cmd = '[ -z "$(git tag -l ${VERSION})" ] || git tag --points-at HEAD | grep "^${VERSION}$" > /dev/null'
-  raise "Tag #{tag} exists but does not point at HEAD" unless system({ 'VERSION' => tag }, cmd)
+  # BASH expression - test tag does not exist OR exists and points at HEAD
+  cmd = '[ -z "$(git tag -l ${V_TAG})" ] || git tag --points-at HEAD | grep "^${V_TAG}$" > /dev/null'
+  raise "Tag #{gem_version_tag} exists but does not point at HEAD" unless system({ 'V_TAG' => gem_version_tag }, cmd)
 end
