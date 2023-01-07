@@ -15,7 +15,8 @@ sed -i "s/VERSION = '.*'/VERSION = '${NEW_SEMVER}'/" ${VERSION_FILE}
 git commit -m "${COMMIT_PREFIX}patch-bump to ${NEW_SEMVER}" ${VERSION_FILE}
 
 if [ -n "${GITHUB_USER_NAME}" ]; then
-  git config user.name "${GITHUB_USER_NAME}"
-  git config user.email "<>"
+  echo "Updating git config with user.name = ${GITHUB_USER_NAME}"
+  git config --global user.name "${GITHUB_USER_NAME}"
+  git config --global user.email "<>"
 fi
 git push
