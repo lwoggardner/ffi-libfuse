@@ -2,6 +2,10 @@ name: Build
 
 on:
   workflow_call: # from release
+    inputs:
+      ref:
+        type: 'string'
+        default: ${{github.ref}}
   pull_request:
     branches:
       - "main"
@@ -12,20 +16,30 @@ on:
 jobs:
   debug-github:
     runs-on: ubuntu-latest
+    env:
+      GIT_REF: ${{ inputs.ref || github.ref }}
     steps:
-      - run: echo "${JSON}"
+      - run: |
+          echo "github:\\n${GITHUB_CONTEXT}"
+          echo "ref:\\n${GIT_REF}"
         env:
-          JSON: ${{ toJSON(github) }}
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
   build:
     strategy:
       matrix:
-        ruby-version: ['2.7', '3.0', '3.1', '3.2']
+        ruby-version: ['2.7'] # , '3.0', '3.1', '3.2']
         os: ['ubuntu-latest'] # mac-os when/if Macfuse can be deployed on CI images
         fuse_pkg: ['fuse','fuse3']
 
     runs-on: ${{ matrix.os }}
+    env:
+      TERM: color # Pretty spec output
+      GIT_REF: ${{ inputs.ref || github.ref }}
+      GIT_BASE_REF: ${{ github.base_ref || 'undefined' }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ env.GIT_REF }}
       - name: Preinstall
         env:
           FUSE_PKG: ${{ matrix.fuse_pkg }}
@@ -36,6 +50,4 @@ jobs:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
       - name: Run tests
-        env:
-          TERM: color # Pretty spec output
         run: bundle exec rake
