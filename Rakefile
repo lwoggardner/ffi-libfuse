@@ -71,8 +71,9 @@ task :version do
 end
 
 require 'bundler/gem_tasks'
+task 'release:guard_clean' => %i[release_guard_tag]
 
-task :release_guard do
+task release_guard_tag: [:version] do
   gem_version = FFI::Libfuse::GEM_VERSION
   tag = "v#{gem_version}"
   git_ref_type = FFI::Libfuse::GIT_REF_TYPE
@@ -84,8 +85,7 @@ task :release_guard do
   end
 
   # BASH expression - tag does not exist OR exists and points at HEAD
-  cmd = '[ -z "$(git tag -l ${VERSION})" ] || git tag --points-at HEAD | grep "^${VERSION}$"'
+  cmd = '[ -z "$(git tag -l ${VERSION})" ] || git tag --points-at HEAD | grep "^${VERSION}$" > /dev/null'
   raise "Tag #{tag} exists but does not point at HEAD" unless system({ 'VERSION' => tag }, cmd)
 end
 
-task release: %i[version release_guard]
