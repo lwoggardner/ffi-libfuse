@@ -18,8 +18,8 @@ describe "FFI::Libfuse.gem_version" do
   ]
   matrix.kw_each do |name:, ref:, base: '' ,expected:, **args |
     it "uses #{name}" do
-      env = { 'GITHUB_REF' => "refs/#{ref}" }
-      env['GITHUB_BASE_REF'] = base if base
+      env = { 'GIT_REF' => "refs/#{ref}" }
+      env['GIT_BASE_REF'] = base if base
       version, _ref_name, _ref_type = FFI::Libfuse.gem_version(env: env, **args)
       expect(version).must_equal(expected)
     end
