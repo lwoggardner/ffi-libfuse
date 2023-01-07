@@ -36,7 +36,7 @@ jobs:
         env:
           GITHUB_USER_NAME: "GitHub Action ${{github.workflow}}"
           VERSION_FILE: 'lib/ffi/libfuse/version.rb'
-          FROM_VERSION: "${{fromJSON(needs.release-please.outputs.json).version"
+          FROM_VERSION: "${{fromJSON(needs.release-please.outputs.json).version}}"
   call-release:
     needs: release-please
     if: ${{fromJSON(needs.release-please.outputs.json).release_created}}
