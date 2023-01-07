@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/lwoggardner/ffi-libfuse/compare/v0.2.1...v0.3.0) (2023-01-07)
+
+
+### Miscellaneous Chores
+
+* fix release-please action ([57d43e9](https://github.com/lwoggardner/ffi-libfuse/commit/57d43e9cac552b1b36469092a6278058893cadc4))
+
 ## [0.2.1](https://github.com/lwoggardner/ffi-libfuse/compare/v0.1.0...v0.2.1) (2023-01-07)
 
 ### Miscellaneous Chores
