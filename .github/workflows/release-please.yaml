@@ -28,20 +28,19 @@ jobs:
   patch-bump:
     needs: release-please
     runs-on: ubuntu-latest
-    if: ${{fromJSON(needs.release-please.outputs.json).releases_created}}
+    if: ${{fromJSON(needs.release-please.outputs.json).release_created}}
     steps:
       - uses: actions/checkout@v3 # TODO: when we protect main, we'll need pass a PAT secret that allows direct push
       - name: Patch Bump
-        if: ${{steps.release-please-pr.outputs.releases_created}}
-        run: .github/scripts/patch_bump.sh ${FROM_VERSION} ${VERSION_FILE}
+        run: ".github/scripts/patch_bump.sh ${FROM_VERSION} ${VERSION_FILE}"
         env:
           GITHUB_USER_NAME: "GitHub Action ${{github.workflow}}"
           VERSION_FILE: 'lib/ffi/libfuse/version.rb'
-          FROM_VERSION: "${{needs.release-please.outputs.major}}.${{needs.release-please.outputs.minor}}.${{needs.release-please.outputs.patch}}"
+          FROM_VERSION: "${{fromJSON(needs.release-please.outputs.json).version"
   call-release:
     needs: release-please
-    if: ${{fromJSON(needs.release-please.outputs.json).releases_created}}
+    if: ${{fromJSON(needs.release-please.outputs.json).release_created}}
     uses: ./.github/workflows/release.yaml
     with:
-      ref: "refs/tags/${{fromJSON(needs.release-please.outputs).tag_name}}"
+      ref:  "refs/tags/${{fromJSON(needs.release-please.outputs.json).tag_name}}"
     secrets: inherit
