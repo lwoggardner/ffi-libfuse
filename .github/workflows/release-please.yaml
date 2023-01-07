@@ -8,12 +8,7 @@ on:
       - main
 
 jobs:
-  # Generally the push to main is a result of a PR which has already been tested
-  # But just in case
-  call-build: # build all platforms
-    uses: ./.github/workflows/build.yaml
   release-please:
-    needs: call-build
     runs-on: ubuntu-latest
     steps:
       - uses: GoogleCloudPlatform/release-please-action@v3
@@ -28,6 +23,20 @@ jobs:
       - run: echo "${JSON}"
         env:
           JSON: ${{ toJSON(steps.release-please-pr) }}
-    outputs:
-      tag_name: ${{ steps.release-please-pr.outputs.tag_name }}
-# TODO: call release workflow, passing tag_name as RELEASE_PLEASE_TAG_NAME
+    outputs: ${{ toJSON(steps.release-please-pr.outputs) }}
+  patch-bump:
+    needs: release-please
+    if: fromJSON(needs.release-please.outputs.releases_created)
+    steps:
+      - uses: actions/checkout@v3 # TODO: when we protect main, we'll need pass a PAT secret that allows direct push
+      - name: Patch Bump
+        if: steps.release-please-pr.outputs.releases_created
+        run: .github/scripts/patch_bump.sh ${FROM_VERSION} ${VERSION_FILE}
+        env:
+          GITHUB_USER_NAME: "GitHub Action ${{github,workflow}}"
+          VERSION_FILE: 'lib/ffi/libfuse/version.rb'
+          FROM_VERSION: "${{needs.release-please.outputs.major}}.${{needs.release-please.outputs.minor}}.${{needs.release-please.outputs.patch}}"
+  call-release:
+    needs: release-please
+    if: fromJSON(needs.release-please.outputs).releases_created
+    uses: ./.github/workflows/release.yaml@$((fromJSON(needs.release-please.outputs).tag_name))

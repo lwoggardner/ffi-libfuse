@@ -2,31 +2,27 @@
 name: Release
 
 on:
-  workflow_dispatch:  # Manually tag and mini-bump,  tag will cause re invoke with push as below
-  push: # Resulting from workflow dispatch (or manually, but that will skip version mini-bump)
+  workflow_dispatch:  # run for pre-existing tag or against a branch
+  push: # If semver tag applied manually - probably not required
     tag:
       - "v[0-9]+.[0-9]+.[0-9]+*"   # semver tags
-  workflow_call: # From release-please (since tag with GITHUB_TOKEN won't trigger)
-    inputs:
-      release_tag:
-        type: string
-        required: true
+  workflow_call: # From release-please
     secrets:
       RUBYGEMS_API_KEY:
         required: true
 jobs:
+  # TODO: Confirm when we use @ref in workflow call GITHUB_REF_TYPE, GITHUB_REF_NAME use that ref
+  #   ie so that checkout gets a tag rather than the original branch
   debug-github:
     runs-on: ubuntu-latest
     steps:
     - run: echo "${JSON}"
       env:
         JSON: ${{ toJSON(github) }}
-  call-build:  # build all platforms if this is a manual call
+  call-build:  # Ultra safety
     uses: ./.github/workflows/build.yaml
-    if: github.event_name == 'TODO!!!!workflow_dispatch'
   release:
     needs: call-build
-    if: always() && (needs.call-build.result == 'success' || needs.call-build.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -35,21 +31,16 @@ jobs:
         with:
           ruby-version: 2.7
           bundler-cache: true
-      - run: gem install gem-release
       - name: Setup Credentials
         run: |
           mkdir -p $HOME/.gem
           touch $HOME/.gem/credentials
+          printf -- "---\n:rubygems_api_key: ${GEM_HOST_API_KEY}\n" > $HOME/.gem/credentials
           chmod 0600 $HOME/.gem/credentials
-          printf -- "---\n:rubygems_api_key: ${GEM_HOST_API_KEY}\n:github: Bearer ${GITHUB_TOKEN}\n" > $HOME/.gem/credentials
           git config user.name "${GITHUB_USER_NAME}"
           git config user.email "<>"
         env:
           GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_API_KEY}}"
-          GITHUB_USER_NAME: "GitHub Action #{{github,workflow}}"
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_USER_NAME: "GitHub Action ${{github,workflow}}"
       - name: Release
-        run: bundle exec rake release[--color]
-        env:
-          RELEASE_PLEASE_TAG_NAME: "${{inputs.release_tag}}"
-
+        run: bundle exec rake release
