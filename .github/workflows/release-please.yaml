@@ -6,7 +6,7 @@ on:
   push:
     branches: # Only run on main
       - main
-      - release-please-action
+      - release-please-action # For testing the action
 jobs:
   release-please:
     runs-on: ubuntu-latest
@@ -44,3 +44,4 @@ jobs:
     uses: ./.github/workflows/release.yaml
     with:
       ref: "refs/tags/${{fromJSON(needs.release-please.outputs).tag_name}}"
+    secrets: inherit

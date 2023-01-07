@@ -10,9 +10,10 @@ on:
     branches:
       - "main"
   push:
-    branches:  # branches that are not releasable
+    branches:  # branches that are not used for release-please
       - "**"
       - "!main"
+      - "!release-please-action"
 jobs:
   debug-github:
     runs-on: ubuntu-latest
