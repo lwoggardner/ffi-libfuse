@@ -33,10 +33,10 @@ jobs:
         if: steps.release-please-pr.outputs.releases_created
         run: .github/scripts/patch_bump.sh ${FROM_VERSION} ${VERSION_FILE}
         env:
-          GITHUB_USER_NAME: "GitHub Action ${{github,workflow}}"
+          GITHUB_USER_NAME: "GitHub Action ${{github.workflow}}"
           VERSION_FILE: 'lib/ffi/libfuse/version.rb'
           FROM_VERSION: "${{needs.release-please.outputs.major}}.${{needs.release-please.outputs.minor}}.${{needs.release-please.outputs.patch}}"
   call-release:
     needs: release-please
     if: fromJSON(needs.release-please.outputs).releases_created
-    uses: ./.github/workflows/release.yaml@$((fromJSON(needs.release-please.outputs).tag_name))
+    uses: ./.github/workflows/release.yaml@${{fromJSON(needs.release-please.outputs).tag_name}}
