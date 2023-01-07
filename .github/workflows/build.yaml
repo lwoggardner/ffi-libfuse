@@ -15,16 +15,6 @@ on:
       - "!main"
       - "!release-please-action"
 jobs:
-  debug-github:
-    runs-on: ubuntu-latest
-    env:
-      GIT_REF: ${{ inputs.ref || github.ref }}
-    steps:
-      - run: |
-          echo "github:\\n${GITHUB_CONTEXT}"
-          echo "ref:\\n${GIT_REF}"
-        env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
   build:
     strategy:
       matrix:

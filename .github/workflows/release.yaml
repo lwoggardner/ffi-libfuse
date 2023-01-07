@@ -15,12 +15,6 @@ on:
       RUBYGEMS_API_KEY:
         required: true
 jobs:
-  debug-github:
-    runs-on: ubuntu-latest
-    steps:
-    - run: echo "${JSON}"
-      env:
-        JSON: ${{ toJSON(github) }}
   call-build:  # Ultra safety
     uses: ./.github/workflows/build.yaml
     with:
