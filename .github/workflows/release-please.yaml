@@ -6,6 +6,7 @@ on:
   push:
     branches: # Only run on main
       - main
+      - release-please-action
 jobs:
   release-please:
     runs-on: ubuntu-latest
@@ -26,6 +27,7 @@ jobs:
       json: ${{ toJSON(steps.rp.outputs) }}
   patch-bump:
     needs: release-please
+    runs-on: ubuntu-latest
     if: ${{fromJSON(needs.release-please.outputs.json).releases_created}}
     steps:
       - uses: actions/checkout@v3 # TODO: when we protect main, we'll need pass a PAT secret that allows direct push
