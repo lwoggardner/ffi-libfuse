@@ -6,13 +6,12 @@ on:
   push:
     branches: # Only run on main
       - main
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
       - uses: GoogleCloudPlatform/release-please-action@v3
-        id: release-please-pr
+        id: rp
         with:
           release-type: ruby
           package-name: ffi-libfuse
@@ -22,15 +21,16 @@ jobs:
           bootstrap-sha: 413fee0cc516bccb54804a3602c60bca99aaf86f
       - run: echo "${JSON}"
         env:
-          JSON: ${{ toJSON(steps.release-please-pr) }}
-    outputs: ${{ toJSON(steps.release-please-pr.outputs) }}
+          JSON: ${{ toJSON(steps.rp) }}
+    outputs:
+      json: ${{ toJSON(steps.rp.outputs) }}
   patch-bump:
     needs: release-please
-    if: fromJSON(needs.release-please.outputs.releases_created)
+    if: ${{fromJSON(needs.release-please.outputs.json).releases_created}}
     steps:
       - uses: actions/checkout@v3 # TODO: when we protect main, we'll need pass a PAT secret that allows direct push
       - name: Patch Bump
-        if: steps.release-please-pr.outputs.releases_created
+        if: ${{steps.release-please-pr.outputs.releases_created}}
         run: .github/scripts/patch_bump.sh ${FROM_VERSION} ${VERSION_FILE}
         env:
           GITHUB_USER_NAME: "GitHub Action ${{github.workflow}}"
@@ -38,7 +38,7 @@ jobs:
           FROM_VERSION: "${{needs.release-please.outputs.major}}.${{needs.release-please.outputs.minor}}.${{needs.release-please.outputs.patch}}"
   call-release:
     needs: release-please
-    if: fromJSON(needs.release-please.outputs).releases_created
+    if: ${{fromJSON(needs.release-please.outputs.json).releases_created}}
     uses: ./.github/workflows/release.yaml
     with:
       ref: "refs/tags/${{fromJSON(needs.release-please.outputs).tag_name}}"
