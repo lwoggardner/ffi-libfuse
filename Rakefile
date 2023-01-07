@@ -88,4 +88,3 @@ task release_guard_tag: [:version] do
   cmd = '[ -z "$(git tag -l ${VERSION})" ] || git tag --points-at HEAD | grep "^${VERSION}$" > /dev/null'
   raise "Tag #{tag} exists but does not point at HEAD" unless system({ 'VERSION' => tag }, cmd)
 end
-
