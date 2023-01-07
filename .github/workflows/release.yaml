@@ -15,10 +15,6 @@ on:
       RUBYGEMS_API_KEY:
         required: true
 jobs:
-  # TODO: Confirm when we use @ref in workflow call GITHUB_REF_TYPE, GITHUB_REF_NAME use that ref
-  #   ie so that checkout gets a tag rather than the original branch
-  # Invalid workflow file
-  # invalid value workflow reference: cannot specify version when calling local workflows
   debug-github:
     runs-on: ubuntu-latest
     steps:
