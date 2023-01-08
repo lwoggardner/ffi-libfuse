@@ -55,36 +55,8 @@ end
 desc 'Regenerate documentation'
 task doc: %i[samples yard]
 
+require_relative 'lib/ffi/libfuse/gem_version'
+FFI::Libfuse::GemHelper.install_tasks(main_branch: FFI::Libfuse::MAIN_BRANCH, version: FFI::Libfuse::VERSION)
+
 # Workflow: Build on push to any branch
 task default: %i[version rubocop bundle:audit:check test doc]
-
-desc 'Version info'
-task :version do
-  require_relative 'lib/ffi/libfuse/gem_version'
-  v = Gem::Version.new(FFI::Libfuse::VERSION)
-  gv = Gem::Version.new(FFI::Libfuse::GEM_VERSION)
-
-  msg = "FFI::Libfuse: VERSION='#{v}' GEM_VERSION='#{gv}'"
-  raise "Mismatched versions - #{msg}" unless gv.release == v
-
-  puts msg
-end
-
-require 'bundler/gem_tasks'
-task 'release:guard_clean' => %i[release_guard_tag]
-
-task release_guard_tag: [:version] do
-  gem_version = FFI::Libfuse::GEM_VERSION
-  gem_version_tag = "v#{gem_version}"
-  git_ref_type = FFI::Libfuse::GIT_REF_TYPE
-  git_ref_name = FFI::Libfuse::GIT_REF_NAME
-
-  # If we're on a tag then tag must be tag for this version
-  if git_ref_type == :tag && git_ref_name != gem_version_tag
-    raise "Checkout is tag '#{git_ref_name}' but does not match the gem version '#{gem_version}'"
-  end
-
-  # BASH expression - test tag does not exist OR exists and points at HEAD
-  cmd = '[ -z "$(git tag -l ${V_TAG})" ] || git tag --points-at HEAD | grep "^${V_TAG}$" > /dev/null'
-  raise "Tag #{gem_version_tag} exists but does not point at HEAD" unless system({ 'V_TAG' => gem_version_tag }, cmd)
-end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../spec_helper'
-require_relative '../../../lib/ffi/libfuse/gem_version'
+require_relative '../../../lib/ffi/libfuse/gem_helper'
 
 describe "FFI::Libfuse.gem_version" do
 
@@ -20,7 +20,7 @@ describe "FFI::Libfuse.gem_version" do
     it "uses #{name}" do
       env = { 'GIT_REF' => "refs/#{ref}" }
       env['GIT_BASE_REF'] = base if base
-      version, _ref_name, _ref_type = FFI::Libfuse.gem_version(env: env, **args)
+      version, _ref_name, _ref_type = FFI::Libfuse::GemHelper.gem_version(env: env, **args)
       expect(version).must_equal(expected)
     end
   end
