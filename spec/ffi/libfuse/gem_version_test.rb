@@ -20,6 +20,8 @@ describe "FFI::Libfuse.gem_version" do
     it "uses #{name}" do
       env = { 'GIT_REF' => "refs/#{ref}" }
       env['GIT_BASE_REF'] = base if base
+      args[:main_branch] ||= 'main'
+      args[:version] ||= FFI::Libfuse::VERSION
       version, _ref_name, _ref_type = FFI::Libfuse::GemHelper.gem_version(env: env, **args)
       expect(version).must_equal(expected)
     end
