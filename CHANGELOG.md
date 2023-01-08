@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/lwoggardner/ffi-libfuse/compare/v0.3.3...v0.3.4) (2023-01-08)
+
+
+### Bug Fixes
+
+* **github:** allow downstream gems to use gem_version etc ([73f3b92](https://github.com/lwoggardner/ffi-libfuse/commit/73f3b92f5e8a1f86a9f6053b71470d7c113e6d19))
+
 ## [0.3.3](https://github.com/lwoggardner/ffi-libfuse/compare/v0.1.0...v0.3.3) (2023-01-07)
 
 ### Miscellaneous Chores
