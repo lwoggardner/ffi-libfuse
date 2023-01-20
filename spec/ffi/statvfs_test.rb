@@ -12,7 +12,6 @@ describe 'FFI::StatVfs' do
     common_members = FFI::StatVfs.ffi_attr_readers.keys.select { |m| rstat.respond_to?(m) }
     expect(common_members).wont_be_empty
     common_members.each do |m|
-      puts "#{m}: #{rstat.public_send(m)}"
       expect(stat.public_send(m)).must_equal(rstat.public_send(m),"statvfs[:#{m}]")
     end
   end
