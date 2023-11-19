@@ -7,7 +7,7 @@ require 'set'
 module FFI
   module Libfuse
     module Adapter
-      # This module assists with converting native C libfuse into idiomatic Ruby
+      # This module assists with converting native C libfuse into idiomatic and duck-typed Ruby behaviour
       #
       # Class Method helpers
       # ===
@@ -77,6 +77,7 @@ module FFI
             return true if @filler.call(@buf, name, fill_stat, offset, *fill_flags).zero?
 
             @buf = nil
+            false
           end
 
           # @return [Proc] a proc to pass to something that yields like #{fill}
@@ -152,29 +153,97 @@ module FFI
 
           # @!group FUSE Callbacks
 
-          # Writes data to path via
+          # Read directory entries via
           #
-          #   * super as per {Ruby#write} if defined
-          #   * {Ruby.write_fh} on ffi.fh
-          def write(path, buf, size = buf.size, offset = 0, ffi = nil)
-            return Ruby.write_fh(buf, size, offset, ffi&.fh) unless defined?(super)
+          #  * super as per {Ruby#readdir} if defined
+          #  * ffi.fh using {ReaddirFiller#readdir_fh}
+          def readdir(path, buf, filler, offset, ffi, flag_arg = nil)
+            rd_filler = ReaddirFiller.new(buf, filler, fuse3: fuse3_compat?)
 
-            Ruby.write_data(buf, size) { |data| super(path, data, offset, ffi) }
+            flag_args = {}
+            flag_args[:readdir_plus] = (flag_arg == :fuse_readdir_plus) if fuse3_compat?
+            return super(path, offset, ffi, **flag_args, &rd_filler) if defined?(super)
+
+            rd_filler.readdir_fh(ffi.fh, offset)
+          rescue StopIteration
+            # do nothing
           end
 
-          # Writes data to path with {FuseBuf}s via
+          # Read data from path via
           #
-          #   * super directly if defined
-          #   * {FuseBufVec#copy_to_fd} if ffi.fh has non-nil :fileno
-          #   * {FuseBufVec#copy_to_str} with the result of {Ruby#write}
+          #  * super as per {Ruby#read} if defined (or returns nil|false)
+          #  * ffi.fh as per {Ruby.read}
+          def read(path, buf, size, offset, ffi)
+            io, super_offset = defined?(super) && Ruby.rescue_not_implemented { super(path, size, offset, ffi) }
+            offset = super_offset if io
+            io ||= ffi.fh
+
+            return [io, offset] unless buf # nil buf as called from read_buf, just wants the io/data back
+
+            Ruby.read(buf, size, offset) { io }
+          end
+
+          # Read data with {FuseBuf}s via
+          #
+          #  * super if defined
+          #  * ffi.fh.fileno if defined and not nil
+          #  * result of {#read}
+          def read_buf(path, bufp, size, offset, ffi)
+            io, super_offset = defined?(super) && Ruby.rescue_not_implemented { super(path, size, offset, ffi) }
+            offset = super_offset if io
+
+            io ||= ffi.fh if ffi.fh.is_a?(Integer) || ffi.fh.respond_to?(:fileno)
+
+            io, offset = read(path, nil, size, offset, ffi) unless io
+
+            Ruby.read_buf(bufp, size, offset) { io }
+          end
+
+          # Read link name from path via super as per {Ruby#readlink}
+          def readlink(path, buf, size)
+            raise Errno::ENOTSUP unless defined?(super)
+
+            Ruby.readlink(buf, size) { super(path, size) }
+          end
+
+          # Writes data to path via
+          #
+          #   * super if defined
+          #   * ffi.fh if not null and quacks like IO (see {IO.write})
+          #
+          def write(path, buf, size = buf.size, offset = 0, ffi = nil)
+            Ruby.write(buf, size) do |data|
+              (defined?(super) && Ruby.rescue_not_implemented { super(path, data, offset, ffi) }) || [ffi&.fh, offset]
+            end
+          end
+
+          # Writes data to path with {FuseBufVec} via
+          #
+          #   * super directly if defined and returns truthy
+          #   * ffi.fh if it represents a file descriptor
+          #   * {#write}
+          #
           def write_buf(path, bufv, offset, ffi)
-            return super if defined?(super)
+            super_result =
+              if defined?(super)
+                Ruby.rescue_not_implemented do
+                  super(path, offset, ffi) do |fh = nil, *flags|
+                    Ruby.write_buf(bufv) { |data| data || [fh, *flags] }
+                  end
+                end
+              end
 
-            fd = ffi&.fh&.fileno
-            return bufv.copy_to_fd(fd, offset) if fd
+            return super_result if super_result
 
-            data = bufv.copy_to_str
-            write(path, data, data.size, offset, ffi)
+            Ruby.write_buf(bufv) do |data|
+              # only handle fileno,  otherwise fall back to write (which will try other kinds of IO)
+              if data
+                # fallback to #write
+                write(path, data, data.size, offset, ffi)
+              else
+                [ffi&.fh.respond_to?(:fileno) && ffi.fh.fileno, offset]
+              end
+            end
           end
 
           # Flush data to path via
@@ -200,56 +269,6 @@ module FFI
             return fh.datasync if datasync && fh.respond_to?(:datasync)
 
             fh.fsync if fh.respond_to?(:fsync)
-          end
-
-          # Read data from path via
-          #
-          #  * super as per {Ruby#read} if defined
-          #  * ffi.fh as per {Ruby.read}
-          def read(path, buf, size, offset, ffi)
-            Ruby.read(buf, size, offset) do
-              defined?(super) ? super(path, size, offset, ffi) : ffi&.fh
-            end
-          end
-
-          # Read data with {FuseBuf}s via
-          #
-          #  * super if defined
-          #  * ffi.fh.fileno if defined and not nil
-          #  * result of {#read}
-          def read_buf(path, bufp, size, offset, ffi)
-            return super if defined?(super)
-
-            Ruby.read_buf(bufp, size, offset) do
-              fh = ffi&.fh
-              fd = fh.fileno if fh.respond_to?(:fileno)
-              next fd if fd
-
-              read(path, nil, size, offset, ffi)
-            end
-          end
-
-          # Read link name from path via super as per {Ruby#readlink}
-          def readlink(path, buf, size)
-            raise Errno::ENOTSUP unless defined?(super)
-
-            Ruby.readlink(buf, size) { super(path, size) }
-          end
-
-          # Read directory entries via
-          #
-          #  * super as per {Ruby#readdir} if defined
-          #  * ffi.fh using {ReaddirFiller#readdir_fh}
-          def readdir(path, buf, filler, offset, ffi, flag_arg = nil)
-            rd_filler = ReaddirFiller.new(buf, filler, fuse3: fuse3_compat?)
-
-            flag_args = {}
-            flag_args[:readdir_plus] = (flag_arg == :fuse_readdir_plus) if fuse3_compat?
-            return super(path, offset, ffi, **flag_args, &rd_filler) if defined?(super)
-
-            rd_filler.readdir_fh(ffi.fh, offset)
-          rescue StopIteration
-            # do nothing
           end
 
           # Set extended attributes via super as per {Ruby#setxattr}
@@ -394,40 +413,78 @@ module FFI
         #  @return [Object] directory handle (available to future operations in fuse_file_info.fh)
         #  @see FuseOperations#opendir
 
-        # @!method write(path,data,offset,info)
+        # @!method write(path,data,offset,ffi)
         #  @abstract
-        #  Write file data. If not implemented will attempt to use info.fh as an IO via :pwrite, or :seek + :write
+        #  Write file data. If not implemented will pass ffi.fh (from {open}) to {IO.write}
         #  @param [String] path
         #  @param [String] data
         #  @param [Integer] offset
-        #  @param [FuseFileInfo] info
-        #  @return [void]
-        #  @raise [Errno::ENOTSUP] if not implemented and info.fh does not quack like IO
+        #  @param [FuseFileInfo] ffi
+        #  @return [Integer] number of bytes written (<= data.size)
+        #  @return [IO] an IO object (data will be sent to {IO.write})
+        #  @return [nil|false] treat as not implemented
+        #  @raise [NotImplementedError, Errno::ENOTSUP] treat as not implemented
         #  @see FuseOperations#write
 
-        # @!method write_buf(path,buffers,offset,info)
+        # @!method write_buf(path,offset,ffi,&buffer)
         #  @abstract
-        #  Write file data from buffers
-        #  If not implemented, will try to use info.fh,fileno to perform libfuse' file descriptor io, otherwise
-        #  the string data is extracted from buffers and passed to #{write}
+        #  Write buffered data to a file via one of the following techniques
+        #
+        #  1. Yield object and flags to &buffer to write data directly to a {FuseBufVec}, File or IO
+        #     and return the yield result (number of bytes written)
+        #
+        #  2. Yield with no params (or explicitly nil and flags) to retrieve String data (via {FuseBufVec#copy_to_str})
+        #     to write to path@offset, returning the number of bytes written (eg data.size)
+        #
+        #  3. Return nil, false or do not implement to
+        #      * try ffi.fh.fileno (from {#open}) as a file descriptor
+        #      * or otherwise fallback to {#write}
+        #
+        #  @param [String] path
+        #  @param [Integer] offset
+        #  @param [FuseFileInfo] ffi
+        #  @param [Proc] buffer
+        #  @yield [io = nil, *flags] Send data to io, or if not set, receive data as a string
+        #  @yieldparam [FuseBufVec] io write directly into these buffers via {FuseBufVec.copy_to}
+        #  @yieldparam [Integer|:fileno] io write to an open file descriptor via {FuseBufVec.copy_to_fd}
+        #  @yieldparam [IO] io quacks like IO passed to {IO.write} to receive data
+        #  @yieldparam [nil|false] io pull data from buffers into a String
+        #  @yieldparam [Array<Symbol>] flags see {FuseBufVec}
+        #  @yieldreturn [String] if io not supplied, the chunk of data to write is returned
+        #  @yieldreturn [Integer] the number of bytes written to io
+        #  @return [Integer] number of bytes written (<= data.size)
+        #  @return [nil|false] treat as not implemented (do not yield AND return nil/false)
+        #  @raise [NotImplementedError, Errno::ENOTSUP] treat as not implemented
+        #  @see FuseOperations#write_buf
 
-        # @!method read(path,size,offset,info)
+        # @!method read(path,size,offset,ffi)
         #  @abstract
-        #  Read file data. If not implemented will attempt to use info.fh to perform the read.
+        #  Read file data.
+        #
+        #  If not implemented will send ffi.fh (from {open}) to {IO.read}
+        #  @param [String] path
+        #  @param [Integer] size
+        #  @param [Integer] offset
+        #  @param [FuseFileInfo] ffi
+        #  @return [Array<Object,Integer>] io, offset will be passed to {IO.read}(io, size, offset)
+        #  @return [nil|false] treat as not implemented
+        #  @raise [NotImplementedError, Errno::ENOTSUP] treat as not implemented
+        #  @see FuseOperations#read
+
+        # @!method read_buf(path,size,offset,info)
+        #  @abstract
+        #  Read file data directly from a buffer
+        #
+        #  If not implemented first tries ffi.fh.fileno (from {#open}) as a file descriptor before
+        #  falling back to {#read}
         #  @param [String] path
         #  @param [Integer] size
         #  @param [Integer] offset
         #  @param [FuseFileInfo] info
-        #  @return [String] the data, expected to be exactly size bytes, except if EOF
-        #  @return [#pread, #read] something that supports :pread, or :seek and :read
-        #  @raise [Errno::ENOTSUP] if not implemented, and info.fh does not quack like IO
-        #  @see FuseOperations#read
+        #  @return [Array<Object,Integer>] io, offset passed to {FuseBufVec#copy_to_io}(io, offset)
+        #  @return [nil|false] treat as not implemented
+        #  @raise [NotImplementedError, Errno::ENOTSUP] treat as not implemented
         #  @see FuseOperations#read_buf
-
-        # @!method read_buf(path,buffers,size,offset,info)
-        #  @abstract
-        #  If not implemented and info.fh has :fileno then libfuse' file descriptor io will be used,
-        #  otherwise will use {read} to populate buffers
 
         # @!method readlink(path, size)
         #  @abstract
@@ -528,6 +585,15 @@ module FFI
         end
 
         class << self
+          # Helper to rescue not implemented or not supported errors from sub-filesystems
+          # @return[Object] result of block
+          # @return[nil] if block raises NotImplementedError or Errno::ENOTSUP
+          def rescue_not_implemented
+            yield
+          rescue NotImplementedError, Errno::ENOTSUP
+            nil
+          end
+
           # Helper for implementing {FuseOperations#readlink}
           # @param [FFI::Pointer] buf
           # @param [Integer] size
@@ -541,27 +607,25 @@ module FFI
             raise Errno::ENOTSUP unless link
             raise Errno::ENAMETOOLONG unless link.size < size # includes terminating NUL
 
-            buf.put_string(link)
+            buf.put_string(link) # with NULL terminator.
             0
           end
 
           # Helper for implementing {FuseOperations#read}
           # @param [FFI::Pointer] buf
           # @param [Integer] size
-          # @param [Integer] offset
-          # @return [Integer] size of data read
+          # @param [Integer, nil] offset
+          # @return [Integer] returns the size of data read into buf
           # @yield []
-          # @yieldreturn [String, #pread, #pwrite] the resulting data or IO like object
+          # @yieldreturn [String, IO] the resulting data or IO like object
           # @raise [Errno::ENOTSUP] if no data is returned
           # @raise [Errno::ERANGE] if data return is larger than size
-          # @see data_to_str
-          def read(buf, size, offset = 0)
-            data = yield
-            raise Errno::ENOTSUP unless data
+          # @see Libfuse::IO.read
+          def read(buf, size, offset = nil)
+            io = yield
+            raise Errno::ENOTSUP unless io
 
-            return data unless buf # called from read_buf
-
-            data = data_to_str(data, size, offset)
+            data = Libfuse::IO.read(io, size, offset)
             raise Errno::ERANGE unless data.size <= size
 
             buf.write_bytes(data)
@@ -572,76 +636,68 @@ module FFI
           # @param [FFI::Pointer] bufp
           # @param [Integer] size
           # @param [Integer] offset
+          # @return [Integer] 0 for success
+          # @raise [Errno:ENOTSUP] if no data or io is returned
           # @yield []
-          # @yieldreturn [Integer|:fileno|String,:pread,:pwrite] a file descriptor, String or io like object
-          # @see data_to_bufvec
-          def read_buf(bufp, size, offset)
-            data = yield
-            raise Errno::ENOTSUP unless data
+          # @yieldreturn [FuseBufVec] list of buffers to read from
+          # @yieldreturn [String, IO, Integer, :fileno] String, IO or file_descriptor to read from
+          #   (see {FuseBufVec.create})
+          def read_buf(bufp, size, offset = nil)
+            io = yield
+            raise Errno::ENOTSUP unless io
 
-            bufp.write_pointer(data_to_bufvec(data, size, offset).to_ptr)
+            fbv = io.is_a?(FuseBufVec) ? io : FuseBufVec.create(io, size, offset)
+            fbv.store_to(bufp)
+
             0
           end
 
-          # Helper to convert input data to a string for use with {FuseOperations#read}
-          # @param [String|:pread|:read] io input data that is a String or quacks like {::IO}
-          # @param [Integer] size
-          # @param [Integer] offset
-          # @return [String] extracted data
-          def data_to_str(io, size, offset)
-            return io if io.is_a?(String)
-            return io.pread(size, offset) if io.respond_to?(:pread)
-            return io.read(size) if io.respond_to?(:read)
-
-            io.to_s
-          end
-
-          # Helper to convert string or IO to {FuseBufVec} for {FuseOperations#read_buf}
-          # @param [Integer|:fileno|String|:pread|:read] data the io like input data or an integer file descriptor
-          # @param [Integer] size
-          # @param [Integer] offset
-          # @return [FuseBufVec]
-          def data_to_bufvec(data, size, offset)
-            data = data.fileno if data.respond_to?(:fileno)
-            return FuseBufVec.init(autorelease: false, size: size, fd: data, pos: offset) if data.is_a?(Integer)
-
-            str = data_to_str(data, size, offset)
-            FuseBufVec.init(autorelease: false, size: str.size, mem: FFI::MemoryPointer.from_string(str))
-          end
-
           # Helper to implement #{FuseOperations#write}
-          # @param [FFI::Pointer|:to_s] buf
-          # @param [Integer] size
-          # @return [Integer] size
-          # @yield [data]
-          # @yieldparam [String] data extracted from buf
-          # @yieldreturn [void]
-          def write_data(buf, size)
-            data = buf.read_bytes(size) if buf.respond_to?(:read_bytes)
-            data ||= buf.to_s
-            data = data[0..size] if data.size > size
-            yield data
-            size
-          end
-
-          # Helper to write a data buffer to an open file
+          # yields the data and receives expects IO to write the data to
           # @param [FFI::Pointer] buf
           # @param [Integer] size
-          # @param [Integer] offset
-          # @param [:pwrite,:seek,:write] handle an IO like file handle
-          # @return [Integer] size
-          # @raise [Errno::ENOTSUP] if handle is does not quack like an open file
-          def write_fh(buf, size, offset, handle)
-            write_data(buf, size) do |data|
-              if handle.respond_to?(:pwrite)
-                handle.pwrite(data, offset)
-              elsif handle.respond_to?(:write)
-                handle.seek(offset) if handle.respond_to?(:seek)
-                handle.write(data)
-              else
-                raise Errno::ENOTSUP
-              end
-            end
+          # @yield(data)
+          # @yieldparam [String] data data to write
+          # @yieldreturn [nil|false] data has not been handled (raises Errno::ENOTSUP)
+          # @yieldreturn [Integer] number of bytes written (will not send to {IO.write})
+          # @yieldreturn [IO] to use with {IO.write}
+          # @return [Integer] number of bytes written
+          # @raise [Errno::ENOTSUP] if nothing is returned from yield
+          def write(buf, size)
+            data = buf.read_bytes(size) if buf.respond_to?(:read_bytes)
+            data ||= buf.to_s
+
+            io, offset = yield data
+
+            raise Errno::ENOSUP unless io
+            return io if io.is_a?(Integer)
+
+            Libfuse::IO.write(io, data, offset)
+          end
+
+          # Helper to implement #{FuseOperations#write_buf}
+          #
+          # Yields firstly with data = nil
+          # A returned truthy object is sent to buvf.copy_to_io
+          # Otherwise yields again with string data from bufv.copy_to_str expecting the caller to write the data
+          # and return the number of bytes written
+          #
+          # @param [FuseBufVec] bufv
+          # @yield [data]
+          # @yieldparam [nil] data first yield is nil
+          # @yieldparam [String] data second yield is the data
+          # @yieldreturn [nil, Array<IO,Integer,Symbol...>] io, [offset,] *flags
+          #   for first yield can return nil to indicate it wants the data as a string (via second yield)
+          #   alternative an object to receive the data via {FuseBufVec#copy_to_io}(io, offset = nil, *flags)
+          # @yieldreturn [Integer] second yield must return number of bytes written
+          # @return [Integer] number of bytes written
+          # @raise [Errno::ENOTSUP] if nothing is returned from either yield
+          def write_buf(bufv)
+            fh, *flags = yield nil # what kind of result do we want
+            return bufv.copy_to_io(fh, offset, *flags) if fh
+
+            data = bufv.copy_to_str(*flags)
+            yield data || (raise Errno::ENOTSUP)
           end
 
           # Helper for implementing {FuseOperations#getxattr}

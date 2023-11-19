@@ -6,6 +6,9 @@ AllCops:
     - 'spec/**/*.rb'
     - 'vendor/bundle/**/*'
 
+Gemspec/DevelopmentDependencies:
+  EnforcedStyle: gemspec
+
 # We're a FUSE filesystem we're going to see the perl syntax sometimes
 Style/SpecialGlobalVars:
   Enabled: false

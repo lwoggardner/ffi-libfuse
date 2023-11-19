@@ -3,7 +3,7 @@
 require_relative 'fuse_version'
 require_relative '../ruby_object'
 require_relative 'fuse_conn_info'
-require_relative 'fuse_buffer'
+require_relative 'fuse_buf_vec'
 require_relative 'fuse_context'
 require_relative 'fuse_file_info'
 require_relative 'fuse_poll_handle'
@@ -717,7 +717,7 @@ module FFI
         #  @abstract
         #  Write contents of buffer to an open file
         #
-        #  Similar to the write() method, but data is supplied in a generic buffer.
+        #  Similar to the {write} method, but data is supplied in a generic buffer.
         #  Use {FuseBufVec#copy_to_fd} to copy data to an open file descriptor, or {FuseBufVec#copy_to_str} to extract
         #  string data from the buffer
         #
@@ -734,16 +734,15 @@ module FFI
         # @!method read_buf(path,bufp,size,offset,fuse_file_info)
         #  @abstract
         #
-        #  Similar to the read() method, but data is stored and returned in a generic buffer.
+        #  Similar to the {read} method, but data is stored and returned in a generic buffer.
         #
         #  No actual copying of data has to take place, the source file descriptor may simply be stored in the buffer
         #  for later data transfer.
         #
         #  @param [String] path
         #  @param [FFI::Pointer<FuseBufVec>] bufp
-        #   The buffer must be allocated dynamically and stored at the location pointed to by bufp.  If the buffer
-        #   contains memory regions, they too must be allocated using malloc().  The allocated memory will be freed by
-        #   the caller.
+        #   The buffer must be allocated dynamically ({FuseBufVec.init})
+        #   and stored at the location pointed to by bufp (see {FuseBufVec#store_to}(bufp)).
         #  @param [Integer] size
         #  @param [Integer] offset
         #  @param [FuseFileInfo] fuse_file_info

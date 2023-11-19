@@ -14,6 +14,11 @@ module FFI
       #
       # Implements callbacks satisfying {Adapter::Ruby} which is automatically included.
       module MappedFiles
+        # @!visibility private
+        def self.included(mod)
+          mod.prepend(Adapter::Ruby::Prepend)
+        end
+
         # Do we have ffi-xattr to handle extended attributes in real files
         HAS_XATTR =
           begin
@@ -34,7 +39,7 @@ module FFI
         #  @return [String] mapped_path in an underlying filesystem
         #
         #    Fuse callbacks are fulfilled using Ruby's native File methods called on this path
-        #  @return [String, Adapter::Ruby::Prepend] mapped_path, filesystem
+        #  @return [String, Adapter::Ruby] mapped_path, filesystem
         #
         #    If an optional filesystem value is returned fuse callbacks will be passed on to this filesystem with the
         #    mapped_path and other callback args unchanged
@@ -76,6 +81,26 @@ module FFI
         # @return [File] the newly opened file at {#map_path}(path)
         def open(path, ffi)
           path_method(__method__, path, ffi) { |rp| File.open(rp, ffi.flags) }
+        end
+
+        # implemented to allow for virtual files within the mapped fs, but we just rely om the result of open
+        def read(path, size, offset, ffi)
+          path_method(__method__, path, size, offset, ffi) { |_rp| nil }
+        end
+
+        # implemented to allow for virtual files within the mapped fs, but we just rely om the result of open
+        def read_buf(path, size, offset, ffi)
+          path_method(__method__, path, size, offset, ffi, error: nil) { |_rp| nil }
+        end
+
+        # implemented to allow for virtual files within the mapped fs, but we just rely om the result of open
+        def write(path, size, offset, ffi)
+          path_method(__method__, path, size, offset, ffi) { |_rp| nil }
+        end
+
+        # implemented to allow for virtual files within the mapped fs, but we just rely om the result of open
+        def write_buf(path, offset, ffi, &buffer)
+          path_method(__method__, path, offset, ffi, block: buffer, error: nil) { |_rp| nil }
         end
 
         # Truncates the file handle (or the real file)
@@ -122,18 +147,19 @@ module FFI
         end
         # @!endgroup
 
-        # @!visibility private
-        def self.included(mod)
-          mod.prepend(Adapter::Ruby::Prepend)
-        end
-
         private
 
         def path_method(callback, path, *args, error: Errno::ENOENT, block: nil)
           rp, fs = map_path(path)
-          raise error if error && !rp
 
-          fs ? fs.send(callback, rp, *args, &block) : yield(rp)
+          raise error if error && !rp
+          return nil unless rp
+          return yield(rp) unless fs
+
+          return fs.send(callback, rp, *args, &block) if fs.respond_to?(callback)
+          raise error if error
+
+          nil
         end
       end
     end
