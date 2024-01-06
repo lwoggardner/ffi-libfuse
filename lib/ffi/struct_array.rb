@@ -10,6 +10,7 @@ module FFI
     def array(size)
       ArrayConverter.new(self, size)
     end
+    alias [] array
 
     # @!visibility private
     # Helper to handle callbacks containing fixed length array of struct
@@ -28,7 +29,7 @@ module FFI
       def from_native(ptr, _ctx)
         return [] if ptr.null?
 
-        Array.new(@size) { |i| @type.new(ptr + (i * @type.size)) }
+        Array.new(@size) { |i| @type.new(ptr + (i * @type.size)) }.freeze
       end
 
       def to_native(ary, _ctx)
