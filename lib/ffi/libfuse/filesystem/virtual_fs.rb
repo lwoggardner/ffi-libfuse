@@ -15,6 +15,8 @@ module FFI
       # Delegate filesystems like {VirtualDir} may raise ENOTSUP to indicate a callback is not handled at runtime
       #   although the behaviour of C libfuse varies in this regard.
       #
+      # It is writable to the user that mounted it may create and edit files within it
+      #
       # Filesystem options
       # ===
       #
@@ -33,8 +35,6 @@ module FFI
       #       Note that {VirtualFile} and {MappedFiles} both prepend {Adapter::Ruby::Prepend} which implements
       #       the logic to fallback from :read/:write_buf to plain :read/:write as necessary to support this option.
       #
-      # It is writable to the user that mounted it may create and edit files within it
-      #
       # @example
       #   class MyFS < FFI::Libfuse::Filesystem::VirtualFS
       #     def fuse_configure
@@ -42,6 +42,7 @@ module FFI
       #       mkdir("/hello")
       #       create("/hello/world").write("Hello World!\n")
       #       create("/hello/everybody").write("Hello Everyone!\n")
+      #      `symlink("/hello/link","everybody")`
       #     end
       #   end
       #
@@ -50,8 +51,8 @@ module FFI
       class VirtualFS
         include Utils
         include Adapter::Context
-        include Adapter::Debug
         include Adapter::Safe
+        include Adapter::Debug
 
         # @return [Object] the root filesystem that quacks like a {FuseOperations}
         attr_reader :root

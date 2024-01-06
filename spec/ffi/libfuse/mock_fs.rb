@@ -19,11 +19,11 @@ class MockFS
 
   def fuse_wrappers(*wrappers)
     wrappers << proc { |fuse_method, *args| fuse_mock(fuse_method, *args) }
-    wrappers << proc { |fm, *args, &b| FFI::Libfuse::Adapter::Debug.debug_callback(fm, *args, &b) } if @debug
     wrappers << {
       wrapper: proc { |fm, *args, &b| FFI::Libfuse::Adapter::Safe.safe_callback(fm, *args, &b) },
       excludes: %i[init destroy]
     }
+    wrappers << proc { |fm, *args, &b| FFI::Libfuse::Adapter::Debug.debug_callback(fm, *args, &b) } if @debug
     wrappers << proc { |fm, *args, &b| expectation_callback(fm, *args, &b) }
 
     wrappers

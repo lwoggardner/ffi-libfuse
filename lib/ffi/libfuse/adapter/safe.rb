@@ -25,6 +25,7 @@ module FFI
 
         module_function
 
+
         # Process the results of yielding *args for the fuse_method callback
         #
         # @yieldreturn [SystemCallError] expected callback errors rescued to return equivalent -ve errno value
@@ -47,10 +48,7 @@ module FFI
           0
         rescue SystemCallError => e
           -e.errno
-        rescue StandardError, ScriptError => e
-          # rubocop:disable Layout/LineLength
-          warn ["FFI::Libfuse error in #{fuse_method}", *e.backtrace.reverse, "#{e.class.name}:#{e.message}"].join("\n\t")
-          # rubocop:enable Layout/LineLength
+        rescue StandardError, ScriptError
           -default_errno.abs
         end
       end
