@@ -80,6 +80,18 @@ module FFI
     end
     alias directory dir
 
+    # Fill content for a symbolic link
+    # @param [Integer] size length of the target name (including null terminator)
+    # @param [Integer] mode
+    # @param [Integer] uid
+    # @param [Integer] gid
+    # @param [Hash] args additional system specific stat fields
+    # @return [self]
+    def symlink(size:, mode: 0o777, nlink: 1, uid: Process.uid, gid: Process.gid, **args)
+      mode = ((S_IFLNK & S_IFMT) | (mode & 0o777))
+      fill(mode: mode, nlink: nlink, size: size, uid: uid, gid: gid, **args)
+    end
+
     # Fill attributes from file (using native LIBC calls)
     # @param [Integer|:to_s] file descriptor or a file path
     # @param [Boolean] follow links
@@ -123,7 +135,7 @@ module FFI
     # @param [Integer] mask (see umask)
     # @param [Hash] overrides see {fill}
     # @return self
-    def mask(mask = 0o4000, **overrides)
+    def mask(mask = S_ISUID, **overrides)
       fill(mode: mode & (~mask), **overrides)
     end
 
@@ -145,6 +157,10 @@ module FFI
 
     def sticky?
       mode & S_ISVTX != 0
+    end
+
+    def symlink?
+      mode & S_IFLNK != 0
     end
 
     class << self
