@@ -5,7 +5,7 @@ require_relative '../../stat_vfs'
 module FFI
   module Libfuse
     module Filesystem
-      # Helper for filesystem accounting
+      # Helper for filesystem accounting, ie to provide useful df output
       class Accounting
         OPTIONS = { 'max_space=' => :max_space, 'max_nodes=' => :max_nodes }.freeze
 

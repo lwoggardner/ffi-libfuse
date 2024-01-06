@@ -151,12 +151,11 @@ module FFI
       # int (*rmdir) (const char *);
       op[:rmdir] = []
 
-      # @!method symlink(path,target)
+      # @!method symlink(target, path)
       #  @abstract
       #  Create a symbolic link
+      #  @param [String] target
       #  @param [String] path
-      #  @param [String] target the link target
-      #
       #  @return [Integer] 0 for success or -ve errno
 
       # int (*symlink) (const char *, const char *);
@@ -173,13 +172,13 @@ module FFI
       # int (*rename) (const char *, const char *);
       op[:rename] = [:fs_string]
 
-      # @!method link(path,target)
+      # @!method link(target, path)
       #  @abstract
       #  Create a hard link to a file
-      #  @param [String] path
       #  @param [String] target
-      #
+      #  @param [String] path
       #  @return [Integer] 0 for success or -ve errno
+      #  @see rename(2)
 
       # int (*link) (const char *, const char *);
       op[:link] = [:fs_string]
@@ -618,7 +617,7 @@ module FFI
         #
 
         # int (*utimens) (const char *, const struct timespec tv[2]);
-        op[:utimens] = [FFI::Stat::TimeSpec.array(2)]
+        op[:utimens] = [FFI::Stat::TimeSpec[2]]
         op[:utimens] << FuseFileInfo.by_ref if FUSE_MAJOR_VERSION >= 3
 
         # @!method bmap(path,blocksize,index)
