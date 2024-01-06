@@ -206,6 +206,8 @@ module FFI
             Ruby.readlink(buf, size) { super(path, size) }
           end
 
+
+
           # Writes data to path via
           #
           #   * super if defined
@@ -607,7 +609,7 @@ module FFI
             raise Errno::ENOTSUP unless link
             raise Errno::ENAMETOOLONG unless link.size < size # includes terminating NUL
 
-            buf.put_string(link) # with NULL terminator.
+            buf.put_string(0, link) # with NULL terminator.
             0
           end
 
