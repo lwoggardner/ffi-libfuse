@@ -10,10 +10,12 @@ module FFI
     # This structure is initialized from the arguments passed to fuse_new(), and then passed to the file system's init()
     # handler which should ensure that the configuration is compatible with the file system implementation.
     #
+    # Some options can only be set via the filesystem init method (use_ino etc..) because the filesystem either
+    # supports them or it doesn't.
     class FuseConfig < FFI::Struct
       include FFI::Accessors
 
-      layout(
+      spec =
         {
           # @!attribute [r] gid
           # @return [Integer|nil] if set, this value will be used for the :gid attribute of each file
@@ -158,7 +160,7 @@ module FFI
 
           # @!attribute [rw] ac_attr_timeout
           #  if set the timeout in seconds for which file attributes are cached for the purpose of checking if
-          # auto_cache should flush the file data on open.
+          #  auto_cache should flush the file data on open.
           # @return [Float|nil]
           ac_attr_timeout_set: :bool_int,
           ac_attr_timeout: :double,
@@ -179,18 +181,25 @@ module FFI
           modules: :pointer,
           debug: :bool_int
         }
-      )
 
-      setters = { gid: :set_gid, uid: :set_uid, umask: :set_mode, ac_attr_timeout: :ac_attr_timeout_set }
-      setters.each do |(attr, setter)|
-        ffi_attr_reader(attr)
+      layout(spec)
+
+      # Find the attrs that have a corresponding setter (prefix set_ or suffix _set
+      setters = spec.keys
+                    .map { |k| [k, k.to_s.sub(/^set_/, '').sub(/_set$/, '').to_sym] }
+                    .reject { |(s, a)| s == a }.to_h
+
+      setters.each do |(setter, attr)|
+        ffi_attr_reader(attr) { |val| self[setter] ? val : nil }
+
         ffi_attr_writer(attr) do |val|
           self[setter] = !val.nil?
           val || 0
         end
       end
 
-      ffi_attr_accessor(*(members - (setters.keys + setters.values)))
+      remaining = (spec.keys - setters.keys - setters.values).map { |a| spec[a] == :bool_int ? "#{a}?" : a }
+      ffi_attr_accessor(*remaining)
     end
   end
 end

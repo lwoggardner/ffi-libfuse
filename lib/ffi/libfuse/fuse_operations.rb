@@ -1,19 +1,18 @@
 # frozen_string_literal: true
 
 require_relative 'fuse_version'
-require_relative '../ruby_object'
 require_relative 'fuse_conn_info'
+require_relative 'fuse_config'
 require_relative 'fuse_buf_vec'
 require_relative 'fuse_context'
 require_relative 'fuse_file_info'
 require_relative 'fuse_poll_handle'
+require_relative 'fuse_callbacks'
+require_relative '../ruby_object'
 require_relative '../stat_vfs'
 require_relative '../flock'
-require_relative 'thread_pool'
 require_relative '../stat'
-require_relative '../struct_array'
 require_relative '../encoding'
-require_relative 'fuse_callbacks'
 
 module FFI
   # Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)
@@ -485,7 +484,6 @@ module FFI
         # fuse3: void *(*init) (struct fuse_conn_info *conn, struct fuse_config *cfg);
         op[:init] =
           if FUSE_MAJOR_VERSION >= 3
-            require_relative 'fuse_config'
             callback([FuseConnInfo.by_ref, FuseConfig.by_ref], RubyObject)
           else
             callback([FuseConnInfo.by_ref], RubyObject)
@@ -654,17 +652,19 @@ module FFI
       #     release, fsync, readdir, releasedir, fsyncdir, ftruncate, fgetattr, lock, ioctl and poll
       #
       #     Closely related to flag_nullpath_ok, but if this flag is set then the path will not be calculaged even if
-      #     the file wasnt unlinked.  However the path can still be non-NULL if it needs to be calculated for some other
-      #     reason.
+      #     the file wasn't unlinked.  However the path can still be non-NULL if it needs to be calculated for some
+      #     other reason.
       #
       #   - :utime_omit_ok
       #
       #     Flag indicating that the filesystem accepts special UTIME_NOW and UTIME_OMIT values in its utimens
       #     operation.
       #
-      #   @return [Array[]Symbol>] a list of flags to set capabilities
+      #   @return [Array<Symbol>] a list of flags to set capabilities
       #   @note Not available in Fuse3
       #   @deprecated in Fuse3 use fuse_config object in {init}
+
+      # flags
       op[:flags] = :flags_mask if FUSE_MAJOR_VERSION < 3
 
       if FUSE_VERSION >= 28
