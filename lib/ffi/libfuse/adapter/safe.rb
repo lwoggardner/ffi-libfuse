@@ -25,7 +25,6 @@ module FFI
 
         module_function
 
-
         # Process the results of yielding *args for the fuse_method callback
         #
         # @yieldreturn [SystemCallError] expected callback errors rescued to return equivalent -ve errno value

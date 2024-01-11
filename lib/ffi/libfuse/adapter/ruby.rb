@@ -206,8 +206,6 @@ module FFI
             Ruby.readlink(buf, size) { super(path, size) }
           end
 
-
-
           # Writes data to path via
           #
           #   * super if defined

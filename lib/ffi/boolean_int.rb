@@ -21,7 +21,7 @@ module FFI
     end
 
     %i[char short int long int8 int16 int32 int64].each do |t|
-      FFI.typedef(BooleanInt.new(t), "bool_#{t}".to_sym)
+      FFI.typedef(BooleanInt.new(t), :"bool_#{t}")
     end
   end
 end
