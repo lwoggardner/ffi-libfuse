@@ -40,9 +40,9 @@ module FFI
       #     def fuse_configure
       #       build({ 'hello' => { 'world.txt' => 'Hello World'}})
       #       mkdir("/hello")
-      #       create("/hello/world").write("Hello World!\n")
+      #       create("/hello/world.txt").write("Hello World!\n")
       #       create("/hello/everybody").write("Hello Everyone!\n")
-      #      `symlink("/hello/link","everybody")`
+      #       symlink("/hello/link","everybody")`
       #     end
       #   end
       #
@@ -53,6 +53,7 @@ module FFI
         include Adapter::Context
         include Adapter::Safe
         include Adapter::Debug
+        include Adapter::Fuse2Compat
 
         # @return [Object] the root filesystem that quacks like a {FuseOperations}
         attr_reader :root
@@ -74,12 +75,13 @@ module FFI
 
         # @overload build(files)
         #  Adds files directly to the filesystem
-        #  @param [Hash] files map of paths to content responding to
+        #  @param [Hash<String,:each_pair, :readdir,:getattr .:to_str] files map of paths to content generated
+        #  according to the content implementing one of the methods below
         #
         #    * :each_pair is treated as a subdir of files
         #    * :readdir (eg {PassThroughDir}) is treated as a directory- sent via mkdir
         #    * :getattr (eg {PassThroughFile}) is treated as a file - sent via create
-        #    * :to_str (eg {::String} ) is created as a {VirtualFile}
+        #    * :to_str (eg {::String} ) is created a default file, with the string sent via write
         def build(files, base_path = Pathname.new('/'))
           files.each_pair do |path, content|
             path = (base_path + path).cleanpath
@@ -118,16 +120,21 @@ module FFI
         # Default fuse options
         # Subclasses can override this method and call super with the additional options:
         # @param [Hash] opts additional options to parse into the {#options} attribute
-        def fuse_options(args, opts = {})
+        # @yield(key, value, **args)
+        #   Called for each matching key in opts
+        # @see FuseArgs#parse!
+        def fuse_options(args, opts = {}, &block)
           @options = {}
           opts = opts.merge({ 'no_buf' => :no_buf }).merge(Accounting::OPTIONS)
-          args.parse!(opts) do |key:, value:, **|
+          args.parse!(opts) do |key:, value:, **kwargs|
             case key
             when *Accounting::OPTIONS.values.uniq
               next accounting.fuse_opt_proc(key: key, value: value)
             when :no_buf
               @no_buf = true
             else
+              next block.call(key, value, **kwargs) if block
+
               options[key] = value
             end
             :handled
@@ -148,6 +155,21 @@ module FFI
           self.class.name
         end
 
+        # @!visibility private
+        def init_fuse_config(fuse_config, _fuse_version)
+          fuse_config.use_ino = use_ino
+        end
+
+        # Configure whether entries in this filesystem provide useful inode values in #gettattr and #readdir
+        #
+        # Defaults to true since default Dir, File, Link all use {VirtualNode} which uses
+        # Ruby object id as the inode value.
+        #
+        # Subclasses should override to false if some sub-filesystems will not provide inode values.
+        # @return [Boolean]
+        def use_ino
+          true
+        end
         # @!endgroup
 
         private
@@ -157,15 +179,16 @@ module FFI
         end
 
         def build_readdir(content, path)
-          @root.mkdir(path.to_s) { content }
+          @root.mkdir(path.to_s) { |_| content }
         end
 
         def build_getattr(content, path)
-          @root.create(path.to_s) { content }
+          @root.create(path.to_s) { |_| content }
         end
 
         def build_to_str(content, path)
-          @root.create(path.to_s) { content }
+          vf = @root.create(path.to_s)
+          vf.write(content.to_str)
         end
 
         # Passes FUSE Callbacks on to the {#root} filesystem

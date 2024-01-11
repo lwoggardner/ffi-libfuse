@@ -88,7 +88,8 @@ module FFI
             @virtual_stat =
               {
                 mode: mode & ~ctx.umask, uid: ctx.uid, gid: ctx.gid,
-                ctime: now, mtime: now, atime: now
+                ctime: now, mtime: now, atime: now,
+                ino: object_id
               }
             accounting&.adjust(0, +1)
             self
