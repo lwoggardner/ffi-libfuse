@@ -44,14 +44,15 @@ module FFI
         def parse_cmdline(args, handler: nil)
           # This also handles -h to print help information on stderr
           # Parse mountpoint, -f , -s from args
-          # @return [Array<(String,Boolean,Boolean)>|nil]
+          # @return [Array<(String,Boolean,Boolean)>]
           #     mountpoint, multi_thread, foreground options from args if available
           #     nil if no mountpoint, or options is requesting help or version information
           mountpoint_ptr = FFI::MemoryPointer.new(:pointer, 1)
           multi_thread_ptr = FFI::MemoryPointer.new(:int, 1)
           foreground_ptr = FFI::MemoryPointer.new(:int, 1)
 
-          return nil unless Libfuse.fuse_parse_cmdline2(args, mountpoint_ptr, multi_thread_ptr, foreground_ptr).zero?
+          res = Libfuse.fuse_parse_cmdline2(args, mountpoint_ptr, multi_thread_ptr, foreground_ptr)
+          raise Error unless res.zero?
 
           # noinspection RubyResolve
           mp_data_ptr = mountpoint_ptr.get_pointer(0)

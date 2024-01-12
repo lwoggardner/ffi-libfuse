@@ -121,7 +121,8 @@ module FFI
       #  - :error            an error, alternatively raise {Error}
       #  - :keep             retain the current argument for further processing
       #  - :handled,:discard remove the current argument from further processing
-      # @return [nil|self] nil on error otherwise self
+      # @raise Error if an error is raised during parsing
+      # @return [self]
       def parse!(opts, data = nil, ignore: %i[non_option unmatched], &block)
         ignore ||= []
 
@@ -140,7 +141,9 @@ module FFI
         end
 
         fop = fuse_opt_proc(symbols, bool_opts, param_opts, ignore, &block)
-        Libfuse.fuse_opt_parse(self, data, int_opts, fop).zero? ? self : nil
+        raise Error unless Libfuse.fuse_opt_parse(self, data, int_opts, fop).zero?
+
+        self
       end
 
       private

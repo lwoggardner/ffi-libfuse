@@ -11,7 +11,7 @@ require_relative 'devt'
 module FFI
   # Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)
   module Libfuse
-    # Filesystems can raise this error to indicate errors from filesystem users
+    # Filesystems can raise this error to indicate misconfiguration issues etc...
     class Error < StandardError; end
 
     # Opinionated default args for {.main}.

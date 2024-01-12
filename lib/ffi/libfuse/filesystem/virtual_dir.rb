@@ -49,13 +49,13 @@ module FFI
         # @!group FUSE Callbacks
 
         # For the root path provides this directory's stat information, otherwise passes on to the next filesystem
-        def getattr(path, stat_buf = nil, _ffi = nil)
+        def getattr(path, stat_buf = nil, ffi = nil)
           if root?(path)
             stat_buf&.directory(nlink: entries.size + 2, **virtual_stat)
             return self
           end
 
-          path_method(__method__, path, stat_buf, notsup: Errno::ENOSYS)
+          path_method(__method__, path, stat_buf, ffi, notsup: Errno::ENOSYS)
         end
 
         # Safely passes on file open to next filesystem

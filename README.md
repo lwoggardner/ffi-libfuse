@@ -84,7 +84,9 @@ class HelloFS
 end
 
 # Start the file system
-FFI::Libfuse.fuse_main(operations: HelloFS.new) if __FILE__ == $0
+exit(FFI::Libfuse.fuse_main(operations: HelloFS.new)) if __FILE__ == $0
+
+exit(1)
 
 ```
 <!-- SAMPLE END: sample/hello_fs.rb -->

@@ -56,7 +56,7 @@ module FFI
       class << self
         def parse_cmdline(args, handler: nil)
           cmdline_opts = FuseCmdlineOpts.new
-          return nil unless Libfuse.fuse_parse_cmdline3(args, cmdline_opts).zero?
+          raise Error unless Libfuse.fuse_parse_cmdline3(args, cmdline_opts).zero?
 
           handler&.fuse_debug(cmdline_opts.debug) if handler.respond_to?(:fuse_debug)
 

@@ -52,11 +52,12 @@ module FFI
         teardown
       end
 
-      # @api private
       # @param [Boolean] foreground
       # @param [Boolean] single_thread
-      # @param [Hash<String,Proc>] traps see {Ackbar.trap}
-      #
+      # @param [Hash<String,Proc>] traps as per Signal.trap
+      #   these are merged over default signal handlers for INT, HUP, TERM that unmount and exit filesystem
+      # @param [Integer] remember fuse cache timeout
+      # @api private
       # Implement fuse loop in ruby
       #
       # Pros:
@@ -112,7 +113,9 @@ module FFI
       end
 
       # Ruby implementation of fuse default traps
-      # @see Ackbar
+      #
+      #  * INT, HUP, TERM to unmount and exit filesystem
+      #  * PIPE is ignored
       def default_traps
         exproc = ->(signame) { exit(signame) }
         @default_traps ||= { INT: exproc, HUP: exproc, TERM: exproc, TSTP: exproc, PIPE: 'IGNORE' }
@@ -190,6 +193,7 @@ module FFI
         fuse_process || (sleep(0.1) && false)
       end
 
+      # @!visibility private
       def teardown
         return unless @fuse
 

@@ -31,8 +31,8 @@ module FFI
               super(path, mode, fuse_file_info)
             end
 
-            def utimens(path, atime, mtime, fuse_file_info = nil)
-              super(path, atime, mtime, fuse_file_info)
+            def utimens(path, times, fuse_file_info = nil)
+              super(path, times, fuse_file_info)
             end
 
             def readdir(path, buffer, filler, offset, fuse_file_info, fuse_readdir_flag = 0)
@@ -40,18 +40,11 @@ module FFI
               super(path, buffer, f3_fill, offset, fuse_file_info, fuse_readdir_flag)
             end
 
-            def fgetattr(path, stat, ffi)
-              stat.clear # For some reason (at least on OSX) the stat is not clear when this is called.
-              getattr(path, stat, ffi)
-              0
-            end
-
-            def ftruncate(*args)
-              truncate(*args)
-            end
-
             def fuse_respond_to?(fuse_method)
-              fuse_method = fuse_method[1..].to_sym if %i[fgetattr ftruncate].include?(fuse_method)
+              # getdir is never supported here anyway
+              # fgetattr and ftruncate already fallback to the respective basic method
+              return false if %i[getdir fgetattr ftruncate].include?(fuse_method)
+
               super(fuse_method)
             end
 
@@ -100,7 +93,7 @@ module FFI
 
         # @!visibility private
         def self.included(mod)
-          mod.prepend(Prepend)
+          mod.prepend(Prepend) if FUSE_MAJOR_VERSION < 3
         end
 
         # @!method init_fuse_config(fuse_config,compat)
