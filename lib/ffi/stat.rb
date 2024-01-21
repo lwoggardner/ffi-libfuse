@@ -62,9 +62,9 @@ module FFI
     # @param [Integer] gid
     # @param [Hash] args additional system specific stat fields
     # @return [self]
-    def file(mode:, size:, uid: Process.uid, gid: Process.gid, **args)
+    def file(mode:, size:, nlink: 1, uid: Process.uid, gid: Process.gid, **args)
       mode = ((S_IFREG & S_IFMT) | (mode & 0o777))
-      fill(mode: mode, size: size, uid: uid, gid: gid, **args)
+      fill(mode: mode, size: size, nlink: nlink, uid: uid, gid: gid, **args)
     end
 
     # Fill content for a directory
