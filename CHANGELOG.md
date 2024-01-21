@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.0](https://github.com/lwoggardner/ffi-libfuse/compare/v0.3.4...v0.4.0) (2024-01-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* **filesystem:** Fuse callbacks :init and :destroy are no longer passed on to sub-filesystems.
+* **adapters:** Adapter::Debug now includes Adapter::Safe.
+* Option parsing errors via raise exception rather than return false/nil
+
+### Features
+
+* **adapters:** Adapter::Debug now includes Adapter::Safe. ([a595304](https://github.com/lwoggardner/ffi-libfuse/commit/a59530427d7eb85961a724969eaa6ec099c5e4f6))
+* **filesystem:** Support :rename operation in virtual filesystems ([a595304](https://github.com/lwoggardner/ffi-libfuse/commit/a59530427d7eb85961a724969eaa6ec099c5e4f6))
+* **filesystem:** Support symlinks and hardlinks in virtual filesystems (VirtualDir/MemoryFS) ([a595304](https://github.com/lwoggardner/ffi-libfuse/commit/a59530427d7eb85961a724969eaa6ec099c5e4f6))
+* Option parsing errors via raise exception rather than return false/nil ([a595304](https://github.com/lwoggardner/ffi-libfuse/commit/a59530427d7eb85961a724969eaa6ec099c5e4f6))
+
+
+### Bug Fixes
+
+* **fuse2compat:** Enhanced Fuse2 compatibility in Fuse2Compat module ([a595304](https://github.com/lwoggardner/ffi-libfuse/commit/a59530427d7eb85961a724969eaa6ec099c5e4f6))
+* symlinks and hard links ([a595304](https://github.com/lwoggardner/ffi-libfuse/commit/a59530427d7eb85961a724969eaa6ec099c5e4f6))
+
 ## [0.3.4](https://github.com/lwoggardner/ffi-libfuse/compare/v0.3.3...v0.3.4) (2023-01-08)
 
 
