@@ -7,7 +7,7 @@ module FFI
     # This module namespace contains classes and modules to assist with building and composing filesystems
     #
     # ### Virtual Filesystems
-    # Classes to help compose in-memory filesystems {VirtualFS}, {VirtualDir}, {VirtualFile}
+    # Classes to help compose in-memory filesystems {VirtualFS}, {VirtualDir}, {VirtualFile}, {VirtualLink}
     #
     # ### Mapped Filesystem
     # Modules to map paths in the fuse filesystem to either real files or other filesystem objects

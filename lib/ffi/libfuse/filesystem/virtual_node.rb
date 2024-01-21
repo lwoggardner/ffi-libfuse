@@ -7,7 +7,8 @@ module FFI
   module Libfuse
     module Filesystem
       module Ruby
-        # Common FUSE Callbacks for a virtual inode
+        # Common FUSE Callbacks for a virtual inode representing a single filesystem object at '/'
+        #
         # **Note** this module is used by both {VirtualFile} which is under {Adapter::Ruby::Prepend}
         #  and {VirtualDir} which passes on native {FuseOperations} calls
         module VirtualNode
@@ -84,12 +85,22 @@ module FFI
 
           # Initialise the stat information for the node - should only be called once (eg from create or mkdir)
           def init_node(mode, ctx: FuseContext.get, now: Time.now)
-            @virtual_stat = { mode: mode & ~ctx.umask, uid: ctx.uid, gid: ctx.gid, ctime: now, mtime: now, atime: now }
+            @virtual_stat =
+              {
+                mode: mode & ~ctx.umask, uid: ctx.uid, gid: ctx.gid,
+                ctime: now, mtime: now, atime: now,
+                ino: object_id
+              }
             accounting&.adjust(0, +1)
             self
           end
 
           private
+
+          # @!visibility private
+          def path_method(_method, *_args)
+            raise Errno::ENOENT
+          end
 
           def root?(path)
             path.to_s == '/'

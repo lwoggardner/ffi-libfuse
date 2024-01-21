@@ -31,8 +31,8 @@ module FFI
               super(path, mode, fuse_file_info)
             end
 
-            def utimens(path, atime, mtime, fuse_file_info = nil)
-              super(path, atime, mtime, fuse_file_info)
+            def utimens(path, times, fuse_file_info = nil)
+              super(path, times, fuse_file_info)
             end
 
             def readdir(path, buffer, filler, offset, fuse_file_info, fuse_readdir_flag = 0)
@@ -40,49 +40,66 @@ module FFI
               super(path, buffer, f3_fill, offset, fuse_file_info, fuse_readdir_flag)
             end
 
-            def fgetattr(path, stat, ffi)
-              stat.clear # For some reason (at least on OSX) the stat is not clear when this is called.
-              getattr(path, stat, ffi)
-              0
-            end
-
-            def ftruncate(*args)
-              truncate(*args)
-            end
-
             def fuse_respond_to?(fuse_method)
-              fuse_method = fuse_method[1..].to_sym if %i[fgetattr ftruncate].include?(fuse_method)
+              # getdir is never supported here anyway
+              # fgetattr and ftruncate already fallback to the respective basic method
+              return false if %i[getdir fgetattr ftruncate].include?(fuse_method)
+
               super(fuse_method)
+            end
+
+            def fuse_options(args)
+              super if defined?(super)
+              return unless respond_to?(:init_fuse_config)
+
+              FUSE_CONFIG_ONLY_ATTRIBUTES.each do |opt|
+                args.add("-o#{opt}") if fuse_config.send(opt)
+              end
             end
 
             def fuse_flags
               res = defined?(super) ? super : []
-              if respond_to?(:init_fuse_config)
-                fuse_config = FuseConfig.new
-                init_fuse_config(fuse_config, :fuse2)
-                res << :nullpath_ok if fuse_config.nullpath_ok?
-              end
+              return res unless respond_to?(:init_fuse_config)
 
+              FUSE_CONFIG_FLAGS.each { |opt| res << opt if fuse_config.send(opt) }
               res
+            end
+
+            private
+
+            def fuse_config
+              @fuse_config ||= begin
+                fuse_config = FuseConfig.new
+                init_fuse_config(fuse_config, :fuse2) if respond_to?(:init_fuse_config)
+                fuse_config
+              end
             end
 
           else
             def init(*args)
-              init_fuse_config(args.detect { |a| a.is_a?(FuseConfig) }) if respond_to?(:init_fuse_config)
+              init_fuse_config(args.detect { |a| a.is_a?(FuseConfig) }, :fuse3) if respond_to?(:init_fuse_config)
               super if defined?(super)
             end
           end
         end
 
+        # Attributes in Fuse3 config that cannot be set by Fuse3 options. If set via {init_fuse_config} the
+        # equivalent options will be force set under Fuse 2
+        FUSE_CONFIG_ONLY_ATTRIBUTES = %i[hard_remove use_ino readdir_ino direct_io].freeze
+
+        # Attributes in Fuse3 config that were {FuseOperations#fuse_flags} in Fuse2. If set via {init_fuse_config} the
+        # equivalent flags will be added
+        FUSE_CONFIG_FLAGS = %i[nullpath_ok].freeze
+
         # @!visibility private
         def self.included(mod)
-          mod.prepend(Prepend)
+          mod.prepend(Prepend) if FUSE_MAJOR_VERSION < 3
         end
 
         # @!method init_fuse_config(fuse_config,compat)
         # @abstract
-        # Define this method to configure the fuse config object so that under Fuse2 the config options
-        # can be converted to appropriate flags.
+        # Define this method to configure the {FuseConfig} object so that under Fuse2 the config options
+        # can be converted to appropriate flags or options
         #
         # @param [FuseConfig] fuse_config the fuse config object
         # @param [Symbol] compat either :fuse2 or :fuse3

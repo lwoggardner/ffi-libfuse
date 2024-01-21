@@ -81,7 +81,6 @@ module FFI
 
         # @!visibility private
         def self.included(mod)
-          # We prepend our shim module so caller doesn't have to call super
           mod.prepend(Prepend) if FUSE_MAJOR_VERSION > 2
         end
       end

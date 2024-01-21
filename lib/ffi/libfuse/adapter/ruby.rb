@@ -102,8 +102,6 @@ module FFI
           end
         end
 
-        # rubocop:disable Metrics/ModuleLength
-
         # Can be prepended to concrete filesystem implementations to skip duplicate handling of {Debug}, {Safe}
         #
         # @note callbacks still expect to be ultimately handled by {Safe}, ie they raise SystemCallError and can
@@ -370,8 +368,6 @@ module FFI
             handles.delete(ffi.fh)
           end
         end
-        # rubocop:enable Metrics/ModuleLength
-
         # @!group FUSE Callbacks
 
         # @!method create(path, mode, fuse_file_info)
@@ -581,7 +577,6 @@ module FFI
           mod.prepend(Prepend)
           mod.include(Context)
           mod.include(Debug)
-          mod.include(Safe)
         end
 
         class << self
@@ -607,7 +602,7 @@ module FFI
             raise Errno::ENOTSUP unless link
             raise Errno::ENAMETOOLONG unless link.size < size # includes terminating NUL
 
-            buf.put_string(link) # with NULL terminator.
+            buf.put_string(0, link) # with NULL terminator.
             0
           end
 

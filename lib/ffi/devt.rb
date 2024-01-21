@@ -15,17 +15,17 @@ module FFI
     #  @param [Integer] major
     #  @param [Integer] minor
     #  @return [Integer] combined major/minor to a single value to pass to mknod etc
-    attach_function :makedev, "#{prefix}makedev".to_sym, %i[int int], :int
+    attach_function :makedev, :"#{prefix}makedev", %i[int int], :int
 
     # @!method major(dev)
     #  @param [Integer] dev
     #  @return [Integer] the major component of dev
-    attach_function :major, "#{prefix}major".to_sym, [:int], :int
+    attach_function :major, :"#{prefix}major", [:int], :int
 
     # @!method minor(dev)
     #  @param [Integer] dev
     #  @return [Integer] the minor component of dev
-    attach_function :minor, "#{prefix}minor".to_sym, [:int], :int
+    attach_function :minor, :"#{prefix}minor", [:int], :int
   rescue FFI::NotFoundError
     case Platform::NAME
     when 'x86_64-darwin'

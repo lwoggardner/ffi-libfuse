@@ -19,22 +19,29 @@ module FFI
 
       #
       # Define a struct attribute reader for members
-      # @param [Array<Symbol>] attrs the attribute names
+      # @param [Array<Symbol>]
+      #   attrs the attribute names used as the reader method name
+      #
+      #   a trailing '?' will be stripped from attribute names for primary reader method name, and cause an
+      #   boolean alias method to be created.
       # @param [Proc|String] format
-      #   A Proc, or format string containing a single %s, to convert attr to struct member name
+      #   A Proc, or format string containing a single %s, to convert each attribute name to the corresponding
+      #   struct member name
       # @param [Boolean] simple
       #   Controls how writer methods are defined using block
       # @param [Proc] block
-      #   An optional block to the struct field(s) into something more useful
+      #   An optional block to convert the struct field value into something more useful
       #
       #   If simple is true then block takes the struct field value, otherwise method is defined directly from the block
-      #   and should use __method__ to get the attr name, and self.class.ffi_attr_readers[__method__] to get the member
-      #   name
+      #   and should use __method__ to get the attribute name. and self.class.ffi_attr_readers[__method__] to get the
+      #   member name if these are not available from enclosed variables.
       # @return [void]
       def ffi_attr_reader(*attrs, format: '%s', simple: true, &block)
         attrs.each do |attr|
+          bool, attr = attr[-1] == '?' ? [true, attr[..-2]] : [false, attr]
+
           member = (format.respond_to?(:call) ? format.call(attr) : format % attr).to_sym
-          ffi_attr_readers[attr] = member
+          ffi_attr_readers[attr.to_sym] = member
           if !block
             define_method(attr) { self[member] }
           elsif simple
@@ -42,11 +49,14 @@ module FFI
           else
             define_method(attr, &block)
           end
+
+          alias_method "#{attr}?", attr if bool
         end
       end
 
       # Define a struct attribute writer
       # @param [Array<Symbol>] attrs the attribute names
+      #   trailing '?' will be stripped from attribute names
       # @param [String|Proc] format
       #   A format string containing a single %s to convert attr symbol to struct member
       # @param [Boolean] simple
@@ -60,6 +70,8 @@ module FFI
       # @return [void]
       def ffi_attr_writer(*attrs, format: '%s', simple: true, &block)
         attrs.each do |attr|
+          attr = attr[..-2] if attr[-1] == '?'
+
           member = (format % attr).to_sym
           ffi_attr_writers[attr.to_sym] = member
           if !block
@@ -95,7 +107,9 @@ module FFI
       # @param [Array<Symbol>] flags list of flags
       # @return [void]
       def ffi_bitflag_reader(attr, *flags)
-        flags.each { |f| ffi_attr_reader(f, simple: false) { self[attr].include?(f) } }
+        flags.each do |f|
+          ffi_attr_reader(:"#{f}?", simple: false) { self[attr].include?(f) }
+        end
       end
 
       # Define individual flag writers over a bitmask field

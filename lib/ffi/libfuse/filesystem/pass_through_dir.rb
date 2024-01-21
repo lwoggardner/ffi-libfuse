@@ -9,7 +9,6 @@ module FFI
       class PassThroughDir
         include MappedFiles
         include Adapter::Debug
-        include Adapter::Safe
         include Utils
 
         # @return [String] The base directory

@@ -7,10 +7,12 @@ class MockFS
   attr_reader :mock
   attr_accessor :paths
 
+  include FFI::Libfuse::Adapter::Debug
+
+
   def initialize(debug: false, paths: {})
     @mock = Minitest::Mock.new
     @paths = paths
-    @debug = debug
   end
 
   def fuse_respond_to?(method)
@@ -19,32 +21,16 @@ class MockFS
 
   def fuse_wrappers(*wrappers)
     wrappers << proc { |fuse_method, *args| fuse_mock(fuse_method, *args) }
-    wrappers << proc { |fm, *args, &b| FFI::Libfuse::Adapter::Debug.debug_callback(fm, *args, &b) } if @debug
-    wrappers << {
-      wrapper: proc { |fm, *args, &b| FFI::Libfuse::Adapter::Safe.safe_callback(fm, *args, &b) },
-      excludes: %i[init destroy]
-    }
-    wrappers << proc { |fm, *args, &b| expectation_callback(fm, *args, &b) }
-
-    wrappers
-  end
-
-  def expectation_callback(fuse_method, *args)
-    yield(*args)
-  rescue Minitest::Assertion => e
-    warn "Assertion failed in #{fuse_method}: #{e.message}"
-    -Errno::ENOTRECOVERABLE::Errno
-  end
-
-  def fuse_debug(enabled)
-    @debug = enabled
+    super(*wrappers)
   end
 
   def init(*_args)
     nil
   end
 
-  def destroy(_obj); end
+  def destroy(_obj)
+    mock.verify
+  end
 
   def getattr(path, stat, ffi = nil)
 
@@ -87,29 +73,49 @@ class MockFS
     mock.expect(:getattr, -Errno::ENOENT::Errno) { |p, s, _ffi = nil| path == p && s.is_a?(FFI::Stat) }
   end
 
-  def expect_file(expected_path, mode: 0o777, size: 0, **stat_args)
+  def expect_stat(expected_path, &stat_proc)
     mock.expect(:getattr, 0) do |path, stat, _ffi = nil|
-      raise "Expected #{expected_path}, got #{path}" unless path == expected_path
+      next false unless path == expected_path
 
-      stat.file(mode: mode, size: size, **stat_args) && true
+      stat_proc.call(stat) && true
     end
   end
 
-  def expect_dir(expected_path, mode: 0o755, **stat_args)
-    mock.expect(:getattr, 0) do |path, stat, _ffi = nil|
-      raise "Expected #{expected_path}, got #{path}" unless path == expected_path
+  def expect_file(expected_path, mode: 0o777, size: 0, **stat_args)
+    expect_stat(expected_path) { |s| s.file(mode: mode, size: size, **stat_args) }
+  end
 
-      stat.dir(mode: mode, **stat_args) && true
-    end
+  def expect_dir(expected_path, mode: 0o755, **stat_args)
+    expect_stat(expected_path) { |s| s.dir(mode: mode, **stat_args) }
+  end
+
+  def expect_symlink(expected_path, **stat_args)
+    expect_stat(expected_path) { |s| s.symlink(**stat_args) }
   end
 
   def fuse_mock(fuse_method, *args)
     return send(fuse_method, *args) if respond_to?(fuse_method)
 
-    path = args.shift
+    read_path_method, _= FFI::Libfuse::FuseOperations.path_arg_methods(fuse_method)
+    path = args.send(read_path_method)
     raise Errno::ENOSYS unless test_path?(path)
 
-    mock.send(fuse_method, path, *args)
+    mock.send(fuse_method, *args)
+  rescue SystemCallError
+    # Expected errors, continue silently
+    raise
+  rescue Minitest::Assertion, StandardError => err
+    # Wrap assertion errors so they can be rescued by Safe
+    err = Errno::ENOTRECOVERABLE if err.is_a?(Minitest::Assertion) || err.is_a?(MockExpectationError)
+    # Log unexpected errors even if we aren't generally debugging callbacks.
+    debug_callback(fuse_method, *args, prefix: 'MockFS ERROR') { |*_| raise err } unless debug?
+    raise err
+  end
+
+  def error_message(err)
+    return super unless err.is_a?(Minitest::Assertion)
+
+    "#{err.class.name}: #{err.result_label} at #{err.location}\n#{err.message}"
   end
 
   def test_path?(path)

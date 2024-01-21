@@ -15,23 +15,21 @@ module FFI
           # @return [String] the (binary) content of the synthetic file
           attr_reader :content
 
+          # @return [Integer] the number of links to this file
+          attr_reader :nlink
+
           # Create an empty synthetic file
           def initialize(accounting: nil)
             super(accounting: accounting)
           end
 
-          # @!visibility private
-          def path_method(_method, *_args)
-            raise Errno::ENOENT
-          end
-
           # @!group FUSE Callbacks
 
-          def getattr(path, stat, ffi = nil)
+          def getattr(path, stat = nil, ffi = nil)
             # We don't exist until create or otherwise or virtual stat exists
             raise Errno::ENOENT unless root?(path) && virtual_stat
 
-            stat.file(size: (ffi&.fh || content).size, **virtual_stat)
+            stat&.file(size: (ffi&.fh || content).size, nlink: nlink, **virtual_stat)
             self
           end
 
@@ -42,6 +40,7 @@ module FFI
           def create(_path, mode, ffi = nil)
             init_node(mode)
             @content = String.new(encoding: 'binary')
+            @nlink = 1
             sio(ffi) if ffi
           end
 
@@ -67,17 +66,25 @@ module FFI
             virtual_stat[:mtime] = Time.now.utc
           end
 
+          def link(_target, path)
+            raise Errno::ENOENT unless root?(path)
+
+            accounting&.adjust(content.size, 1) if @nlink.zero?
+            @nlink += 1
+            self
+          end
+
           def unlink(path)
             raise Errno::ENOENT unless root?(path)
 
-            accounting&.adjust(-content.size, -1)
+            @nlink -= 1
+            accounting&.adjust(-content.size, -1) if @nlink.zero?
           end
 
           private
 
           def sio(ffi)
-            io = ffi&.fh
-            io || StringIO.new(content, ffi&.flags)
+            ffi&.fh || StringIO.new(content, ffi&.flags)
           end
         end
       end
