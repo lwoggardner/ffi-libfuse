@@ -39,7 +39,9 @@ describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
       skip skip_msg if skip_msg
       act_stdout, act_stderr, status = run_filesystem(fs, *args, env: { 'MEMORY_FS_SKIP_DEFAULT_ARGS' => 'Y'}) do |mnt|
         d = Pathname.new("#{mnt}/testdir")
+        m = Pathname.new("#{mnt}/moved")
         f = d + 'file.txt'
+
         expect(d.exist?).must_equal(false,"#{d} won't exist")
 
         d.mkdir
@@ -51,22 +53,50 @@ describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
         expect(f.exist?).must_equal(true,"#{f} exist")
         expect(f.stat.zero?).must_equal(true,"#{f} has size zero")
 
-        expect(d.children.size).must_equal(1, "#{d} contains 1 child file")
+        expect(d.children.size).must_equal(1, "#{d} contains 1 file")
         expect(d.children).must_include(f)
-
 
         expect(f.write("hello world\n")).must_equal(12,"#{f} write returns bytes written")
 
         expect(f.read).must_equal("hello world\n")
+        expect(f.stat.nlink).must_equal(1)
+
+        # Hardlinks
+        h = d + 'hardlink.txt'
+        FileUtils.link(f, h)
+        expect(d.children.size).must_equal(2, "#{d} contains 2 files")
+        expect(d.children).must_include(h)
+        expect(h.read).must_equal("hello world\n")
+        expect(h.stat.nlink).must_equal(2)
+
+        # Symlinks
+        l = d + 'link.txt'
+        FileUtils.symlink('file.txt',l)
+        expect(d.children.size).must_equal(3, "#{d} contains 3 files")
+        expect(d.children).must_include(l)
+        expect(l.read).must_equal("hello world\n")
 
         expect(proc { d.rmdir }).must_raise(Errno::ENOTEMPTY)
 
-        f.delete
+        notdir = f + 'x.notdir'
+        expect( proc { notdir.write('not a dir') }).must_raise(Errno::ENOTDIR)
 
+        FileUtils.mv(d,m)
+        expect(d.exist?).must_equal(false, "#{d} wont exist after rename")
+        expect(m.children.size).must_equal(3, "#{m} contains all 3 files moved from #{d}")
+        FileUtils.mv(m,d)
+
+        l.delete
+        expect(l.exist?).must_equal(false,"#{l} wont exist after delete")
+
+        h.delete
+        expect(h.exist?).must_equal(false,"#{h} wont exist after delete")
+        expect(f.exist?).must_equal(true,"#{f} must exist after #{h} is deleted")
+
+        f.delete
         expect(f.exist?).must_equal(false,"#{f} wont exist after delete")
 
         d.delete
-
         expect(d.exist?).must_equal(false,"#{d} won't exist after rmdir")
       end
       expect(status).must_equal(0,'status zero')

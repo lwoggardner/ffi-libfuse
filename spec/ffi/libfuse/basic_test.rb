@@ -85,8 +85,35 @@ describe "MockFS #{FFI::Libfuse::FUSE_VERSION}" do
   end
 
   describe 'links' do
-    it 'should create and resolve symbolic links'
-    it 'should create and resolve hard links'
+    before do
+      mock_fs.paths = { '/testDirectory' => stat_as_dir }
+    end
+
+    it 'should create and resolve symbolic links' do
+      mock_fs.expect_not_exists('/testDirectory/sym.link')
+      mock_fs.expect_stat('/testDirectory/sym.link') { |s| s.symlink(size: 10)}
+
+      mock_fs.expect(:symlink, 0, %w[test /testDirectory/sym.link])
+      mock_fs.expect(:readlink, 0) do |_path, buf, size|
+        expect(size).must_be(:>=, 10,'readlink buffer size')
+        buf.put_string(0, 'test.file') # with NULL terminator.
+      end
+
+      with_fuse(mock_fs) do |mountpoint|
+        File.symlink("test","#{mountpoint}/testDirectory/sym.link")
+        _(File.readlink("#{mountpoint}/testDirectory/sym.link")).must_equal('test.file')
+      end
+    end
+
+    it 'should create and resolve hard links' do
+      mock_fs.paths['/testDirectory/test.file'] = stat_as_file
+      mock_fs.expect_not_exists('/testDirectory/hard.link')
+      mock_fs.expect_file('/testDirectory/hard.link', nlink: 2)
+      mock_fs.expect(:link, 0, %w[/testDirectory/test.file /testDirectory/hard.link])
+      with_fuse(mock_fs) do |mountpoint|
+        File.link("#{mountpoint}/testDirectory/test.file", "#{mountpoint}/testDirectory/hard.link")
+      end
+    end
   end
 
   describe 'timestamps' do

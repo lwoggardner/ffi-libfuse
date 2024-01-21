@@ -45,8 +45,9 @@ module FFI
         delegate.respond_to?(method)
       end
 
-      def wrap_callback(method, proc_wrapper = nil, wrapper: proc_wrapper, excludes: [], &block)
+      def wrap_callback(method, proc_wrapper = nil, wrapper: proc_wrapper, excludes: [], includes: nil, &block)
         return block if excludes.include?(method)
+        return block unless includes.nil? || includes.include?(method)
 
         # Wrapper proc takes fuse_method as first arg, but the resulting proc only takes the callback args
         # ie so wrappers should not yield the fuse_method onwards!!

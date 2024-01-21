@@ -375,7 +375,7 @@ module FFI
         # @yieldparam [FuseOperations,nil] entry the filesystem object currently stored at entry_key
         def path_method(callback, *args, notsup: Errno::ENOTSUP, block: nil)
           # Inside path_method
-          path_arg_method, next_arg_method = path_arg_methods(callback)
+          _read_arg_method, path_arg_method, next_arg_method = FuseOperations.path_arg_methods(callback)
           path = args.send(path_arg_method)
 
           entry_key, next_path = entry_path(path)
@@ -388,15 +388,6 @@ module FFI
 
           notdir = Errno::ENOTDIR unless our_entry
           entry_send(entries[entry_key], callback, *args, notsup: notsup, notdir: notdir, &block)
-        end
-
-        # Helper for #{path_method} to determine which argument (first or last) contains the path to traverse into
-        # @param [Symbol] callback a FUSE Callback
-        # @return [Symbol,Symbol] either
-        #   * [:push, :pop] for :link, :symlink, :rename
-        #   * [:shift, :unshift] for everything else
-        def path_arg_methods(callback)
-          CALLBACK_PATH_ARG_METHODS.fetch(callback, CALLBACK_PATH_ARG_METHODS[:default])
         end
 
         private
@@ -431,13 +422,6 @@ module FFI
 
           [path[1..sep_index - 1], path[sep_index..]]
         end
-
-        CALLBACK_PATH_ARG_METHODS = {
-          link: %i[pop push],
-          symlink: %i[pop push],
-          rename: %i[pop push],
-          default: %i[shift unshift]
-        }.freeze
 
         def entry_fuse_respond_to?(entry_fs, method)
           entry_fs.respond_to?(:fuse_respond_to?) ? entry_fs.fuse_respond_to?(method) : entry_fs.respond_to?(method)

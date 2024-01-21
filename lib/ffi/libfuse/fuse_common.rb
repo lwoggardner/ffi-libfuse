@@ -54,8 +54,9 @@ module FFI
 
       # @param [Boolean] foreground
       # @param [Boolean] single_thread
-      # @param [Hash<String,Proc>] traps as per Signal.trap
-      #   these are merged over default signal handlers for INT, HUP, TERM that unmount and exit filesystem
+      # @param [Hash<String,Proc|nil>] traps as per Signal.trap
+      #   these are merged over {default_traps} for INT, HUP, TERM that unmount and exit filesystem. A nil
+      #   value for these default signals will leave any existing signal handle in place.
       # @param [Integer] remember fuse cache timeout
       # @api private
       # Implement fuse loop in ruby
@@ -72,6 +73,7 @@ module FFI
       #    * clone_fd is ignored
       #    * filesystem interrupts probably can't work
       def run_ruby(foreground: true, single_thread: true, traps: {}, remember: false, **options)
+        traps = default_traps.merge(traps).keep_if { |_, v| v }
         Ackbar.trap(default_traps.merge(traps)) do |signals|
           daemonize unless foreground
 
@@ -114,7 +116,7 @@ module FFI
 
       # Ruby implementation of fuse default traps
       #
-      #  * INT, HUP, TERM to unmount and exit filesystem
+      #  * INT, HUP, TERM, TSTP to unmount and exit filesystem
       #  * PIPE is ignored
       def default_traps
         exproc = ->(signame) { exit(signame) }

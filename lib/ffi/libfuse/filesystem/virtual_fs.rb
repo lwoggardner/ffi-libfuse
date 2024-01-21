@@ -51,7 +51,6 @@ module FFI
       class VirtualFS
         include Utils
         include Adapter::Context
-        include Adapter::Safe
         include Adapter::Debug
         include Adapter::Fuse2Compat
 

@@ -43,18 +43,80 @@ module FFI
     # All Callback methods are optional, but some are essential for a useful filesystem
     # e.g. {getattr},{readdir}
     #
-    # Almost all callback operations take a path which can be of any length and will return 0 for success, or raise a
-    # {::SystemCallError} on failure
+    # Almost all callback operations take a path which can be of any length and will return 0 for success or a negative
+    # `Errno` value on failure.
     #
     class FuseOperations < FFI::Struct
       include FuseCallbacks
 
+      # Callbacks that have no return value
+      VOID_RETURN = %i[init destroy].freeze
+
       # Callbacks that are expected to return meaningful positive integers
       MEANINGFUL_RETURN = %i[read write write_buf lseek copy_file_range getxattr listxattr].freeze
 
-      # @return [Boolean] true if fuse_callback expects a meaningful integer return
-      def self.meaningful_return?(fuse_callback)
-        MEANINGFUL_RETURN.include?(fuse_callback)
+      # @!visibility private
+      # Methods to handle the path argument for most {path_callbacks}
+      NODE_PATH_METHODS = %i[first shift unshift].freeze
+
+      # @!visibility private
+      # Methods to handle the path argument for {link}, {symlink} and {rename}
+      LINK_PATH_METHODS = %i[last pop push].freeze
+
+      # @!visibility private
+      CALLBACK_PATH_ARG_METHODS = Hash.new(NODE_PATH_METHODS).merge(
+        {
+          link: LINK_PATH_METHODS,
+          symlink: LINK_PATH_METHODS,
+          rename: LINK_PATH_METHODS
+        }
+      ).freeze
+
+      class << self
+        # @return [Boolean] true if fuse_callback expects a meaningful integer return
+        def meaningful_return?(fuse_callback)
+          MEANINGFUL_RETURN.include?(fuse_callback)
+        end
+
+        # @return [Boolean] true if fuse_callback expects a void return
+        def void_return?(fuse_callback)
+          VOID_RETURN.include?(fuse_callback)
+        end
+
+        # Helper to determine how to handle the path argument for a path callback
+        # @param [Symbol] fuse_callback callback method name (must be one of #{path_callbacks})
+        # @return [Symbol, Symbol,Symbol] read, remove, add methods.
+        #   [:last, :push, :pop] for :link, :symlink, :rename,
+        #   [:first, :shift, :unshift] for everything else
+        # @example
+        #   def wrap_callback(fuse_method, *args)
+        #       read, remove, add = FFI::Libfuse::FuseOperations.path_arg_methods(fuse_method)
+        #       path = args.send(read)
+        #       # ... do something with path
+        #
+        #       path = args.send(remove)
+        #       # ... do something to make an alternate path
+        #       args.send(add, adjusted_path)
+        #       delegate.send(fuse_methoed, *args)
+        #   end
+        def path_arg_methods(fuse_callback)
+          CALLBACK_PATH_ARG_METHODS[fuse_callback]
+        end
+
+        # @return [Set<Symbol>] list of callback methods
+        def fuse_callbacks
+          @fuse_callbacks ||= Set.new(members - [:flags])
+        end
+
+        # @return [Set<Symbol>] list of path callback methods
+        def path_callbacks
+          @path_callbacks ||= fuse_callbacks - VOID_RETURN
+        end
+      end
+
+      # @!visibility private
+      def fuse_callbacks
+        self.class.fuse_callbacks
       end
 
       # Container to dynamically build up the operations layout which is dependent on the loaded libfuse version
@@ -883,21 +945,6 @@ module FFI
 
         fuse_flags.concat(delegate.fuse_flags) if delegate.respond_to?(:fuse_flags)
         send(:[]=, :flags, fuse_flags.uniq)
-      end
-
-      # @!visibility private
-      def fuse_callbacks
-        self.class.fuse_callbacks
-      end
-
-      # @return [Set<Symbol>] list of callback methods
-      def self.fuse_callbacks
-        @fuse_callbacks ||= Set.new(members - [:flags])
-      end
-
-      # @return [Set<Symbol>] list of path callback methods
-      def self.path_callbacks
-        @path_callbacks ||= fuse_callbacks - %i[init destroy]
       end
     end
   end
