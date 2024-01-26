@@ -326,7 +326,7 @@ module FFI
       #   or unwanted
       # @return [Array<Symbol>]
       # @see capable
-      ffi_attr_reader(:want, simple: false) do |*caps, **h|
+      ffi_attr_reader_method(:want) do |*caps, **h|
         next self[:want] if caps.empty? && h.empty?
 
         h.merge!(caps.pop) if caps.last.is_a?(Hash)

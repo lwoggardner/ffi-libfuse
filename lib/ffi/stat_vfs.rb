@@ -75,8 +75,7 @@ module FFI
     # @!attribute [rw] namemax
     #  @return [Integer] Maximum filename length
 
-    int_members = members.grep(/^f_/).map { |m| m[2..].to_sym }
-    ffi_attr_accessor(*int_members, format: 'f_%s')
+    ffi_attr_accessor(**members.grep(/^f_/).to_h { |m| [m[2..].to_sym, m] })
 
     extend FFI::Library
     ffi_lib FFI::Library::LIBC

@@ -34,9 +34,9 @@ module FFI
     int_members = Native
                   .members
                   .select { |m| m.to_s.start_with?('st_') && !m.to_s.end_with?('timespec') }
-                  .map { |m| m[3..].to_sym }
+                  .to_h { |m| [:"#{m[3..]}", m] }
 
-    ffi_attr_accessor(*int_members, format: 'st_%s')
+    ffi_attr_accessor(**int_members)
 
     # @!attribute [rw] atime
     #   @return [Time] time of last access
@@ -47,12 +47,13 @@ module FFI
     # @!attribute [rw] ctime
     #   @return [Time] time of last status change
 
-    time_members = Native.members.select { |m| m.to_s =~ /^st_.*timespec$/ }.map { |m| m[3..-5].to_sym }
+    time_members = Native.members.select { |m| m.to_s =~ /^st_.*timespec$/ }.to_h { |m| [:"#{m[3..-5]}", m] }
 
-    ffi_attr_reader(*time_members, format: 'st_%sspec', &:time)
+    ffi_attr_reader(**time_members, &:time)
 
-    ffi_attr_writer(*time_members, format: 'st_%sspec', simple: false) do |sec, nsec = 0|
-      self[__method__[0..-2].to_sym].set_time(sec, nsec)
+    ffi_attr_writer_method(**time_members) do |sec, nsec = 0|
+      _attr, member = ffi_attr_writer_member(__method__)
+      self[member].set_time(sec, nsec)
     end
 
     # Fill content for a regular file
@@ -164,16 +165,22 @@ module FFI
     end
 
     class << self
-      # @!method file(stat,**fields)
+      # @!method file(**fields)
       # @return [Stat]
       # @raise [SystemCallError]
       # @see Stat#file
 
-      # @!method dir(stat,**fields)
+      # @!method dir(**fields)
       # @return [Stat]
       # @raise [SystemCallError]
       # @see Stat#dir
-      %i[file dir].each { |m| define_method(m) { |stat = new, **args| stat.send(m, **args) } }
+
+      # @!method symlink(**fields)
+      # @return [Stat]
+      # @raise [SystemCallError]
+      # @see Stat#symlink
+
+      %i[file dir symlink].each { |m| define_method(m) { |stat = new, **args| stat.send(m, **args) } }
       alias directory dir
 
       # @!method from(file, stat = new(), follow: false)

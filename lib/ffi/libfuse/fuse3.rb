@@ -58,12 +58,12 @@ module FFI
           cmdline_opts = FuseCmdlineOpts.new
           raise Error unless Libfuse.fuse_parse_cmdline3(args, cmdline_opts).zero?
 
-          handler&.fuse_debug(cmdline_opts.debug) if handler.respond_to?(:fuse_debug)
+          handler&.fuse_debug(cmdline_opts.debug?) if handler.respond_to?(:fuse_debug)
 
           # mimics fuse_main which exits after printing version info, even if -h
-          if cmdline_opts.show_version
+          if cmdline_opts.show_version?
             show_version(handler)
-          elsif cmdline_opts.show_help
+          elsif cmdline_opts.show_help?
             show_help(args, handler)
           end
 
@@ -146,7 +146,7 @@ module FFI
       private
 
       def native_fuse_loop_mt(max_idle_threads: 10, **_options)
-        Libfuse.fuse_loop_mt3(@fuse, FuseLoopConfig.new.fill(max_idle: max_idle_threads))
+        Libfuse.fuse_loop_mt3(@fuse, FuseLoopConfig.new.fill(max_idle_threads: max_idle_threads))
       end
 
       def unmount

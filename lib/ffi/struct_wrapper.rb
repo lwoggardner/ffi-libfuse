@@ -100,12 +100,14 @@ module FFI
 
     # Get attribute
     def [](member_or_attr)
-      @native[self.class.ffi_attr_readers.fetch(member_or_attr, member_or_attr)]
+      _attr, member = ffi_attr_reader_member(member_or_attr, member_or_attr)
+      @native[member]
     end
 
     # Set attribute
     def []=(member_or_attr, val)
-      @native[self.class.ffi_attr_writers.fetch(member_or_attr, member_or_attr)] = val
+      _attr, member = ffi_attr_writer_member(member_or_attr, member_or_attr)
+      @native[member] = val
     end
 
     # Pass unimplemented methods on to {#native} underlying struct

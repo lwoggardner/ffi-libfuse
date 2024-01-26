@@ -3,13 +3,17 @@
 require_relative 'fuse_version'
 require_relative 'fuse_opt'
 require_relative '../ruby_object'
+require_relative '../boolean_int'
+require_relative '../accessors'
 
 module FFI
   # Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)
   module Libfuse
     # struct fuse_args
     class FuseArgs < FFI::Struct
-      layout :argc, :int, :argv, :pointer, :allocated, :int
+      include FFI::Accessors
+
+      layout :argc, :int, :argv, :pointer, :allocated, :bool_int
 
       # Create a fuse_args struct from command line options
       # @param [Array<String>] argv command line args
@@ -34,31 +38,15 @@ module FFI
         @arg_vector[argv.size].put_pointer(0, FFI::Pointer::NULL)
         self[:argv] = @arg_vector
         self[:argc] = argv.size
-        self[:allocated] = 0
+        self[:allocated] = false # ie libfuse did not allocate
         self
-      end
-
-      # @!attribute [r] argc
-      # @return [Integer] count of args
-      def argc
-        self[:argc]
       end
 
       # @!attribute [r] argv
       # @return [Array<String>] list of args
-      def argv
+      ffi_attr_reader(:argv) do
         # noinspection RubyResolve
         self[:argv].get_array_of_pointer(0, argc).map(&:read_string)
-      end
-
-      # @!visibility private
-      def allocated
-        self[:allocated]
-      end
-
-      # @!visibility private
-      def inspect
-        "#{self.class.name} - #{%i[argc argv allocated].to_h { |m| [m, send(m)] }}"
       end
 
       # Add an arg to this arg list
@@ -150,6 +138,8 @@ module FFI
 
       # Valid return values from parse! block
       FUSE_OPT_PROC_RETURN = { error: -1, keep: 1, handled: 0, discard: 0 }.freeze
+
+      ffi_attr_reader(:argc, :allocated?)
 
       def fuse_opt_proc(symbols, bool_opts, param_opts, ignore, &block)
         proc do |data, arg, key, out|
