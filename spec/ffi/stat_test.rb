@@ -24,7 +24,17 @@ describe 'FFI::Stat' do
   it 'maps the stat struct same as File.stat' do
     stat = FFI::Stat.stat(__FILE__)
     rstat = File.stat(__FILE__)
-    common_members = FFI::Stat.ffi_attr_readers.keys.select { |m| rstat.respond_to?(m) }
+    common_members = FFI::Stat.ffi_attr_readers.select { |m| rstat.respond_to?(m) }
+    expect(common_members).wont_be_empty
+    common_members.each do |m|
+      expect(stat.public_send(m)).must_equal(rstat.public_send(m),"stat[:#{m}]")
+    end
+  end
+
+  it 'can be filled from a File.stat' do
+    rstat = File.stat(__FILE__)
+    stat = FFI::Stat.new.fill(rstat)
+    common_members = FFI::Stat.ffi_attr_readers.select { |m| rstat.respond_to?(m) }
     expect(common_members).wont_be_empty
     common_members.each do |m|
       expect(stat.public_send(m)).must_equal(rstat.public_send(m),"stat[:#{m}]")

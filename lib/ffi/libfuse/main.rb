@@ -189,12 +189,16 @@ module FFI
       # @!method fuse_traps
       #  @abstract
       #  Passed to {FuseCommon#run} to allow filesystem to handle custom signal traps. These traps
-      #  are merged over those from {FuseCommon#default_traps}
-      #  @return [Hash<String|Symbol|Integer,String|Proc>]
+      #  are merged over those from {FuseCommon#default_traps}. A nil value can be used to avoid a default trap
+      #  being set.
+      #  @return [Hash<String|Symbol|Integer,String|Proc|nil>]
       #    map of signal name or number to signal handler as per Signal.trap
       #  @example
       #    def fuse_traps
-      #      { HUP: ->() { reload() }}
+      #      {
+      #         HUP: ->() { reload() },
+      #         INT: nil
+      #      }
       #    end
 
       # @!method fuse_version

@@ -10,7 +10,7 @@ module FFI
     # This structure is initialized from the arguments passed to fuse_new(), and then passed to the file system's init()
     # handler which should ensure that the configuration is compatible with the file system implementation.
     #
-    # Some options can only be set via the filesystem init method (use_ino etc..) because the filesystem either
+    # Some options can only be set via the filesystem init method (:use_ino etc..) because the filesystem either
     # supports them or it doesn't.
     class FuseConfig < FFI::Struct
       include FFI::Accessors
@@ -40,7 +40,7 @@ module FFI
           # @!attribute [rw] negative_timeout
           # The timeout in seconds for which a negative lookup will be cached.
           #
-          # This means, that if file did not exist (lookup retuned ENOENT), the lookup will only be redone after the
+          # This means, that if file did not exist (lookup returned ENOENT), the lookup will only be redone after the
           # timeout, and the file/directory will be assumed to not exist until then. A value of zero means that
           # negative lookups are not cached.
           #
@@ -55,7 +55,7 @@ module FFI
           # @return [Float]
           attr_timeout: :double,
 
-          # @!attribute [rw] intr
+          # @!attribute [rw] intr?
           # Allow requests to be interrupted
           # @return [Boolean]
           intr: :bool_int,
@@ -80,7 +80,7 @@ module FFI
           # @return [Integer]
           remember: :int,
 
-          # @!attribute [rw] hard_remove
+          # @!attribute [rw] hard_remove?
           # should open files be removed immediately
           #
           # The default behavior is that if an open file is deleted, the file is renamed to a hidden file
@@ -95,7 +95,7 @@ module FFI
           # @return [Boolean]
           hard_remove: :bool_int,
 
-          # @!attribute [rw] use_ino
+          # @!attribute [rw] use_ino?
           # use filesystem provided inode values
           #
           # Honor the st_ino field in the functions getattr() and fill_dir(). This value is used to fill in the st_ino
@@ -109,8 +109,8 @@ module FFI
           # @return [Boolean]
           use_ino: :bool_int,
 
-          # @!attribute [rw] readdir_ino
-          # generate inodes for readdir even if {#use_ino} is set
+          # @!attribute [rw] readdir_ino?
+          # generate inodes for readdir even if {#use_ino?} is set
           #
           # If use_ino option is not given, still try to fill in the d_ino field in readdir(2). If the name was
           # previously looked up, and is still in the cache, the inode number found there will be used.  Otherwise it
@@ -118,7 +118,7 @@ module FFI
           # @return [Boolean]
           readdir_ino: :bool_int,
 
-          # @!attribute [rw] direct_io
+          # @!attribute [rw] direct_io?
           # disables the use of kernel page cache (file content cache) in the kernel for this filesystem.
           #
           # This has several affects:
@@ -135,13 +135,13 @@ module FFI
           # @return [Boolean]
           direct_io: :bool_int,
 
-          # @!attribute [rw] kernel_cache
+          # @!attribute [rw] kernel_cache?
           # disables flushing the cache of the file contents on every open(2).
           #
           # This should only be enabled on filesystem where the file data is never changed externally (not through the
           # mounted FUSE filesystem).  Thus it is not suitable for network filesystem and other intermediate filesystem.
           #
-          # **Note**:  if neither this option or {#direct_io} is specified data is still cached after the open(2),
+          # **Note**:  if neither this option or {#direct_io?} is specified data is still cached after the open(2),
           # so a read(2) system call will not always initiate a read operation.
           #
           # Internally, enabling this option causes fuse to set {FuseFileInfo#keep_cache} overwriting any value that was
@@ -149,7 +149,7 @@ module FFI
           # @return [Boolean]
           kernel_cache: :bool_int,
 
-          # @!attribute [rw] auto_cache
+          # @!attribute [rw] auto_cache?
           # invalidate cached data on open based on changes in file attributes
           #
           # This option is an alternative to `kernel_cache`. Instead of unconditionally keeping cached data, the cached
@@ -165,7 +165,7 @@ module FFI
           ac_attr_timeout_set: :bool_int,
           ac_attr_timeout: :double,
 
-          # @!attribute [rw] nullpath_ok
+          # @!attribute [rw] nullpath_ok?
           # operations on open files and directories are ok to receive nil paths
           #
           # If this option is given the file-system handlers for the following operations will not receive path
@@ -185,21 +185,24 @@ module FFI
       layout(spec)
 
       # Find the attrs that have a corresponding setter (prefix set_ or suffix _set
+      # map attr => setter
       setters = spec.keys
-                    .map { |k| [k, k.to_s.sub(/^set_/, '').sub(/_set$/, '').to_sym] }
-                    .reject { |(s, a)| s == a }.to_h
+                    .map { |k| [k.to_s.sub(/^set_/, '').sub(/_set$/, '').to_sym, k] }
+                    .reject { |(s, a)| s == a }
+                    .to_h
 
-      setters.each do |(setter, attr)|
-        ffi_attr_reader(attr) { |val| self[setter] ? val : nil }
-
-        ffi_attr_writer(attr) do |val|
-          self[setter] = !val.nil?
-          val || 0
-        end
+      ffi_attr_reader_method(*setters.keys) do
+        self[setters[__method__]] ? self[__method__] : nil
       end
 
-      remaining = (spec.keys - setters.keys - setters.values).map { |a| spec[a] == :bool_int ? "#{a}?" : a }
-      ffi_attr_accessor(*remaining)
+      ffi_attr_writer_method(*setters.keys) do |val|
+        self[setters[__method__]] = !val.nil?
+        self[__method__] = val || 0
+      end
+
+      ffi_attr_reader(:show_help?, :debug?)
+      remaining = (spec.keys - setters.keys - setters.values - %i[show_help modules debug])
+      ffi_attr_accessor(*remaining.map { |a| spec[a] == :bool_int ? "#{a}?" : a })
     end
   end
 end

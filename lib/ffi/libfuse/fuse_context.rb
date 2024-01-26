@@ -15,7 +15,8 @@ module FFI
       base[:umask] = :mode_t if FUSE_VERSION >= 28
       layout base
 
-      ffi_attr_reader(*members, simple: false) do
+      # Define readers, safe from null access
+      ffi_attr_reader_method(*members) do
         m = __method__
 
         # Use overrides if they are available, or the default context if the underlying memory is invalid
