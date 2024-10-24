@@ -73,7 +73,7 @@ module FFI
         return [o, e, s.exitstatus] unless err
 
         warn "Errors\n#{e}" unless e.empty?
-        warn "Output\n#{o}" unless o.empty? Minitest::Assertion, StandardError => e
+        warn "Output\n#{o}" unless o.empty?
         raise err
       end
 

@@ -24,24 +24,24 @@ module FFI
             fi = args.pop
             return fgetattr(*args, fi) if fi && fuse_super_respond_to?(:fgetattr)
 
-            super(*args)
+            super
           end
 
           def truncate(*args)
             fi = args.pop
             return ftruncate(*args, fi) if fi && fuse_super_respond_to?(:ftruncate)
 
-            super(*args)
+            super
           end
 
           def chown(*args)
             args.pop
-            super(*args)
+            super
           end
 
           def chmod(*args)
             args.pop
-            super(*args)
+            super
           end
 
           # TODO: Fuse3 deprecated flag utime_omit_ok - which meant that UTIME_OMIT and UTIME_NOW are passed through
@@ -50,14 +50,14 @@ module FFI
           #  but there is no way to handle OMIT
           def utimens(*args)
             args.pop
-            super(*args) if defined?(super)
+            super if defined?(super)
           end
 
           def init(*args)
             args.pop
 
             # TODO: populate FuseConfig with output from fuse_flags/FuseConnInfo where appropriate
-            super(*args)
+            super
           end
 
           def readdir(*args, &block)
@@ -71,7 +71,7 @@ module FFI
               proc { |buf, name, stat, off| a.call(buf, name, stat, off, 0) }
             end
 
-            super(*args, &block)
+            super
           end
 
           def fuse_respond_to(fuse_callback)

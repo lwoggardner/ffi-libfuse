@@ -12,7 +12,7 @@ module FFI
           include VirtualNode
           def initialize(accounting: nil)
             @target = target
-            super(accounting: accounting)
+            super
           end
 
           def readlink(_path, size)

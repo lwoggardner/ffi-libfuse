@@ -338,7 +338,7 @@ module FFI
 
           # Calls super if defined and storing result to protect from GC until {#destroy}
           def init(*args)
-            o = super(*args) if fuse_super_respond_to?(:init)
+            o = super if fuse_super_respond_to?(:init)
             handles << o if o
           end
 

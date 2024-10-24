@@ -23,7 +23,7 @@ module FFI
           }
           return wrappers unless defined?(super)
 
-          super(*wrappers)
+          super
         end
 
         # @return [Integer] the default errno to return for rescued errors.  ENOTRECOVERABLE unless overridden
