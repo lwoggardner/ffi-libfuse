@@ -15,7 +15,7 @@ module FFI
           }
           return wrappers unless defined?(super)
 
-          super(*wrappers)
+          super
         end
       end
     end

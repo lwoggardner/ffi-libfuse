@@ -41,7 +41,7 @@ module FFI
 
         def initialize(accounting: Accounting.new)
           @entries = {}
-          super(accounting: accounting)
+          super
         end
 
         # @!endgroup
@@ -157,7 +157,7 @@ module FFI
             # TODO: Strictly should understand setgid and sticky bits of this dir's mode when creating new files
             new_file = file ? file.call(name) : new_file(name)
             if entry_fuse_respond_to?(new_file, :create)
-              new_file.public_send(:create, '/', mode, ffi)
+              new_file.create('/', mode, ffi)
             else
               # TODO: generate a sensible device number
               entry_send(new_file, :mknod, '/', mode, 0)

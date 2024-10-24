@@ -31,8 +31,9 @@ module FFI
         show_version: :bool_int,
         show_help: :bool_int,
         clone_fd: :bool_int,
-        max_idle_threads: :int
+        max_idle_threads: :uint
       }
+      spec[:max_threads] = :uint if FUSE_MINOR_VERSION >= 12
 
       layout(spec)
 
@@ -40,6 +41,7 @@ module FFI
       ffi_attr_reader(*bool.map { |k, _| "#{k}?" })
 
       ffi_attr_reader(:max_idle_threads, :mountpoint)
+      ffi_attr_reader(:max_threads) if FUSE_MINOR_VERSION >= 12
     end
   end
 end

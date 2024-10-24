@@ -27,13 +27,13 @@ module FFI
         return Pointer::NULL if value.nil?
 
         value = value.native if value.is_a?(StructWrapper)
-        super(value, ctx)
+        super
       end
 
       def from_native(value, ctx)
         return nil if value.null?
 
-        native = super(value, ctx)
+        native = super
         @wrapper_class.new(native)
       end
     end
