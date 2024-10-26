@@ -427,17 +427,12 @@ module FFI
       if from.is_a?(Hash)
         args.merge!(from)
       else
-        include_all = from.is_a?(Stat.class)
         writers.each do |w|
           r = w[0..-2] # strip trailing =
-          send(w, from.send(r)) if from.respond_to?(r, include_all)
+          send(w, from.public_send(r)) if from.respond_to?(r)
         end
       end
       args.transform_keys! { |k| :"#{k}=" }
-
-      if (invalid = args.keys - writers).any?
-        raise ArgumentError, "Cannot fill #{self.class.name} using #{invalid}"
-      end
 
       args.each_pair { |k, v| send(k, v) }
       self

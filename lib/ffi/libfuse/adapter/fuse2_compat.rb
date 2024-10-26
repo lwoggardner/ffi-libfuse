@@ -12,27 +12,27 @@ module FFI
           if FUSE_MAJOR_VERSION == 2
             # @!visibility private
             def getattr(path, stat, fuse_file_info = nil)
-              super(path, stat, fuse_file_info)
+              super
             end
 
             def truncate(path, size, fuse_file_info = nil)
-              super(path, size, fuse_file_info)
+              super
             end
 
             def init(fuse_conn_info, fuse_config = nil)
-              super(fuse_conn_info, fuse_config)
+              super
             end
 
             def chown(path, uid, gid, fuse_file_info = nil)
-              super(path, uid, gid, fuse_file_info)
+              super
             end
 
             def chmod(path, mode, fuse_file_info = nil)
-              super(path, mode, fuse_file_info)
+              super
             end
 
             def utimens(path, times, fuse_file_info = nil)
-              super(path, times, fuse_file_info)
+              super
             end
 
             def readdir(path, buffer, filler, offset, fuse_file_info, fuse_readdir_flag = 0)
@@ -45,7 +45,7 @@ module FFI
               # fgetattr and ftruncate already fallback to the respective basic method
               return false if %i[getdir fgetattr ftruncate].include?(fuse_method)
 
-              super(fuse_method)
+              super
             end
 
             def fuse_options(args)

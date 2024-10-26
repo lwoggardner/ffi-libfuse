@@ -145,8 +145,8 @@ module FFI
 
       private
 
-      def native_fuse_loop_mt(max_idle_threads: 10, **_options)
-        Libfuse.fuse_loop_mt3(@fuse, FuseLoopConfig.new.fill(max_idle_threads: max_idle_threads))
+      def native_fuse_loop_mt(**options)
+        Libfuse.fuse_loop_mt3(@fuse, FuseLoopConfig.create(**options))
       end
 
       def unmount

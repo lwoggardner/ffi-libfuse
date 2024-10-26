@@ -20,7 +20,7 @@ module FFI
 
           # Create an empty synthetic file
           def initialize(accounting: nil)
-            super(accounting: accounting)
+            super
           end
 
           # @!group FUSE Callbacks

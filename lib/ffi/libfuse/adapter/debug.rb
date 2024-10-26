@@ -41,7 +41,7 @@ module FFI
           wrappers << proc { |fm, *args, &b| debug_callback(fm, *args, **conf, &b) } if debug?
           return wrappers unless defined?(super)
 
-          super(*wrappers)
+          super
         end
 
         # @!visibility private

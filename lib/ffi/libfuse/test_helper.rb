@@ -73,7 +73,7 @@ module FFI
         return [o, e, s.exitstatus] unless err
 
         warn "Errors\n#{e}" unless e.empty?
-        warn "Output\n#{o}" unless o.empty? Minitest::Assertion, StandardError => e
+        warn "Output\n#{o}" unless o.empty?
         raise err
       end
 
@@ -87,7 +87,7 @@ module FFI
         if mac_fuse?
           system("diskutil unmount force #{mnt} >/dev/null 2>&1")
         else
-          system("fusermount -zu #{mnt} >/dev/null 2>&1")
+          system("fusermount#{FUSE_MAJOR_VERSION == 3 ? '3' : ''} -zu #{mnt} >/dev/null 2>&1")
         end
       end
 
@@ -107,10 +107,8 @@ module FFI
       private
 
       def open3_filesystem(args, env, filesystem, fsname, mnt)
-        if defined?(Bundler)
-          Bundler.with_unbundled_env do
-            Open3.capture3(env, 'bundle', 'exec', filesystem.to_s, mnt, "-ofsname=#{fsname}", *args, binmode: true)
-          end
+        if ENV['BUNDLER_GEMFILE']
+          Open3.capture3(env, 'bundle', 'exec', filesystem.to_s, mnt, "-ofsname=#{fsname}", *args, binmode: true)
         else
           Open3.capture3(env, filesystem.to_s, mnt, "-ofsname=#{fsname}", *args, binmode: true)
         end
