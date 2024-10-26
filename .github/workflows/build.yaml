@@ -21,11 +21,11 @@ jobs:
         ruby-version: ['2.7','3.2','3.3']
         os: ['ubuntu-latest','ubuntu-24.04'] # mac-os when/if Macfuse can be deployed on CI images
         fuse_pkg: ['fuse','fuse3']
-        shell: [ 'bash']
+        chroot: [ '' ]
         include:
           - ruby-version: '3.3'
             os: 'ubuntu-latest'
-            shell: 'alpine.sh {0}'
+            chroot: 'alpine'
 
 
     runs-on: ${{ matrix.os }}
@@ -41,13 +41,13 @@ jobs:
         env:
           FUSE_PKG: ${{ matrix.fuse_pkg }}
         run: .github/scripts/pre_install_${{runner.os}}.sh
-        if: ${{ matrix.shell == 'bash' }}
+        if: ${{ matrix.chroot != 'alpine' }}
       - name: Set up Ruby ${{ matrix.ruby-version }}
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
-        if: ${{ matrix.shell == 'bash' }}
+        if: ${{ matrix.chroot != 'alpine' }}
       - name: Setup Alpine Linux
         uses: jirutka/setup-alpine@v1
         with:
@@ -56,7 +56,11 @@ jobs:
             ${{ matrix.fuse_pkg }}
             ruby
             ruby-bundler
-        if: ${{ matrix.shell != 'bash' }}
+        if: ${{ matrix.chroot == 'alpine' }}
       - name: Run tests
         run: bundle exec rake
-        shell: ${{ matrix.shell }}
+        shell: alpine.sh {0} # we can't use variables in shell
+        if: ${{ matrix.chroot == 'alpine' }}
+      - name: Run tests
+        run: bundle exec rake
+        if: ${{ matrix.chroot != 'alpine' }}
