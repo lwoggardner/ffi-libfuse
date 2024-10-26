@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache@v4
         with:
          path: ${{ env.BUNDLE_PATH }}
-         key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }}
+         key: alpine-ruby-${{ hashFiles('**/Gemfile.lock,/etc/os-release') }}
          restore-keys: |
            ${{ runner.os }}-gems-
       - name: Run tests
