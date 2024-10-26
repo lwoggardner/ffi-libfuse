@@ -51,7 +51,7 @@ jobs:
          restore-keys: |
            ${{ runner.os }}-gems-
       - name: Run tests
-        run: bundle install && bundle exec rake
+        run: bundle install && bundle exec rake test # only test, no rubocop etc..
         shell: alpine.sh {0}
 
   build:
