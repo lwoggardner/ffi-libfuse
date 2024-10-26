@@ -16,6 +16,7 @@ on:
       - "!release-please-action"
 jobs:
   build-alpine:
+    if: !contains(github.event.head_commit.message, '[no-build-alpine]')
     strategy:
       matrix:
         fuse_pkg: ['fuse','fuse3']
@@ -55,6 +56,8 @@ jobs:
         shell: alpine.sh {0}
 
   build:
+    if: !contains(github.event.head_commit.message, '[no-build]')
+
     strategy:
       matrix:
         ruby-version: ['2.7','3.2','3.3']
