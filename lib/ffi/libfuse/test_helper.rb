@@ -108,7 +108,7 @@ module FFI
 
       def open3_filesystem(args, env, filesystem, fsname, mnt)
         if ENV['BUNDLER_GEMFILE']
-            Open3.capture3(env, 'bundle', 'exec', filesystem.to_s, mnt, "-ofsname=#{fsname}", *args, binmode: true)
+          Open3.capture3(env, 'bundle', 'exec', filesystem.to_s, mnt, "-ofsname=#{fsname}", *args, binmode: true)
         else
           Open3.capture3(env, filesystem.to_s, mnt, "-ofsname=#{fsname}", *args, binmode: true)
         end
