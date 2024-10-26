@@ -32,7 +32,7 @@ describe "MemoryFS #{FFI::Libfuse::FUSE_VERSION}" do
     { name: 'native loop single threaded foreground', args: %w[-f -s -o native]},
     { name: 'native loop multi thread foreground', args: %w[-f -o native]},
     { name: 'native loop single thread daemonized', args: %w[-s -o native]},
-    { name: 'native loop multi thread deamonized', args: %w[-o native], skip_msg: 'TODO: Why does this hang?'},
+    { name: 'native loop multi thread daemonized', args: %w[-o native], skip_msg: 'TODO: Why does this hang?'},
     { name: 'no_buf', args: %w[-o no_buf]},
   ].kw_each do |name:, args:, skip_msg: false|
     it name do

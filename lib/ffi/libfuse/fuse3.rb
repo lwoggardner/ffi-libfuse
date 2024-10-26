@@ -146,8 +146,7 @@ module FFI
       private
 
       def native_fuse_loop_mt(**options)
-        cfg = FuseLoopConfig.create(**options)
-        Libfuse.fuse_loop_mt3(@fuse, cfg)
+        Libfuse.fuse_loop_mt3(@fuse, FuseLoopConfig.create(**options))
       end
 
       def unmount
