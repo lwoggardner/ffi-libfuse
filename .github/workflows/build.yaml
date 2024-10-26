@@ -25,6 +25,11 @@ jobs:
         include:
           - ruby-version: '3.3'
             os: 'ubuntu-latest'
+            fuse_pkg: 'fuse'
+            chroot: 'alpine'
+          - ruby-version: '3.3'
+            os: 'ubuntu-latest'
+            fuse_pkg: 'fuse3'
             chroot: 'alpine'
 
 
@@ -57,8 +62,8 @@ jobs:
             ruby
             ruby-bundler
         if: ${{ matrix.chroot == 'alpine' }}
-      - name: Run tests
-        run: bundle exec rake
+      - name: Run tests (alpine)
+        run: bundle install && bundle exec rake
         shell: alpine.sh {0} # we can't use variables in shell
         if: ${{ matrix.chroot == 'alpine' }}
       - name: Run tests
