@@ -48,9 +48,9 @@ jobs:
         uses: actions/cache@v4
         with:
          path: ${{ env.BUNDLE_PATH }}
-         key: alpine-ruby-${{ hashFiles('**/Gemfile.lock,/etc/os-release') }}
+         key: alpine-ruby-gems${{ hashFiles('**/Gemfile.lock','/etc/os-release') }}
          restore-keys: |
-           ${{ runner.os }}-gems-
+           $alpine-ruby-gems-
       - name: Run tests
         run: bundle install && bundle exec rake test # only test, no rubocop etc..
         shell: alpine.sh {0}
