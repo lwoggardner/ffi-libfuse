@@ -36,6 +36,7 @@ jobs:
             build-base
             ${{ matrix.fuse_pkg }}
             ruby
+            ruby--dev
             ruby-bundler
       - name: Preinstall
         env:
