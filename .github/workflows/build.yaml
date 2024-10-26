@@ -50,7 +50,7 @@ jobs:
          path: ${{ env.BUNDLE_PATH }}
          key: alpine-ruby-gems${{ hashFiles('**/Gemfile.lock','/etc/os-release') }}
          restore-keys: |
-           $alpine-ruby-gems-
+           alpine-ruby-gems-
       - name: Run tests
         run: bundle install && bundle exec rake test # only test, no rubocop etc..
         shell: alpine.sh {0}
