@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/lwoggardner/ffi-libfuse/compare/v0.4.0...v0.4.1) (2024-10-26)
+
+
+### Bug Fixes
+
+* support alpine linux with musl libc and fuse 3.16 ([65d362d](https://github.com/lwoggardner/ffi-libfuse/commit/65d362d7f3e87bca426742cccaabc9f421e6fc38)), closes [#26](https://github.com/lwoggardner/ffi-libfuse/issues/26) [#27](https://github.com/lwoggardner/ffi-libfuse/issues/27)
+
 ## [0.4.0](https://github.com/lwoggardner/ffi-libfuse/compare/v0.3.4...v0.4.0) (2024-01-21)
 
 
