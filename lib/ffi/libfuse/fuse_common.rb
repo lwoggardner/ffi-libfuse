@@ -147,7 +147,7 @@ module FFI
           # close/redirect file descriptors
           $stdin.close
 
-          [$stdout, $stderr].each { |io| io.reopen('/dev/null', 'w') }
+          [$stdout, $stderr].each { |io| io.reopen(File::NULL, 'w') }
 
           pw.write([0].pack('c'))
         ensure
