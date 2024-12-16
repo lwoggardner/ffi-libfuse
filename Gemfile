@@ -2,15 +2,17 @@
 
 source 'https://rubygems.org'
 
-AVAILABLE_LOCAL_GEMS = %w[ffi].freeze
-LOCAL_GEM_PATH = ENV.fetch('LOCAL_GEM_PATH', '..')
-LOCAL_GEMS = ENV.fetch('LOCAL_GEMS', AVAILABLE_LOCAL_GEMS.join(';')).split(/[,;]|\s+/)
+LOCAL_GEM_PATH = Bundler.settings['local.gem_path'] || '..'
+LOCAL_GEMS = Bundler.settings['local.gems']&.split(/[,;]|\s+/) || []
 
-def local_gem(gem_name, **options)
-  options[:path] = "#{LOCAL_GEM_PATH}/#{gem_name}" if Dir.exist?("#{LOCAL_GEM_PATH}/#{gem_name}")
-  gem gem_name, **options
+def local_gem(gem_name, version = nil, transitive: true, **options)
+  if LOCAL_GEMS.include?(gem_name) && File.exist?("#{LOCAL_GEM_PATH}/#{gem_name}/#{gem_name}.gemspec")
+    options[:path] = "#{LOCAL_GEM_PATH}/#{gem_name}"
+    warn "local gem #{LOCAL_GEM_PATH}/#{gem_name} - #{options}"
+  end
+  gem gem_name, version, **options unless transitive
 end
 
-(AVAILABLE_LOCAL_GEMS & LOCAL_GEMS).each { |g| local_gem(g) }
+local_gem 'ffi'
 
 gemspec

@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require 'bundler/gem_tasks'
+Rake::Task['install'].clear
+Rake::Task['release'].clear
+
 require 'rake/clean'
 
 CLOBBER.include %w[pkg/ doc/]

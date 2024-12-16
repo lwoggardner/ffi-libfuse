@@ -28,7 +28,7 @@ module FFI
         def getattr(path, stat = nil, _ffi = nil)
           return super unless root?(path)
 
-          stat&.directory(@root.virtual_stat.merge({ nlink: entries.size + 2 }))
+          stat&.directory(**@root.virtual_stat.merge({ nlink: entries.size + 2 }))
 
           self
         end

@@ -90,7 +90,6 @@ module FFI
         fd: -1, fd_retry: false, pos: nil # rubocop:disable Naming/MethodParameterName
 
       )
-
         # Allocate size bytes if we've been given a null pointer
         mem = FFI::MemoryPointer.new(:char, size, true) if fd == -1 && mem.null? && size.positive?
 

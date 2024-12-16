@@ -60,17 +60,18 @@ module FFI
         #   For void callbacks
         # @return [Integer]
         #   For path callbacks,  either 0 for success or a negative errno value
-        def safe_callback(fuse_method, *args, default_errno: Errno::ENOTRECOVERABLE::Errno)
+        def safe_callback(fuse_method, *args, default_errno: Errno::ENOTRECOVERABLE::Errno, &block)
           if FuseOperations::MEANINGFUL_RETURN.include?(fuse_method)
-            safe_meaningful_integer_callback(fuse_method, *args, default_errno: default_errno)
+            safe_meaningful_integer_callback(fuse_method, *args, default_errno: default_errno, &block)
           elsif FuseOperations::VOID_RETURN.include?(fuse_method)
-            safe_void_callback(fuse_method, *args)
+            safe_void_callback(fuse_method, *args, &block)
           else
-            safe_integer_callback(fuse_method, *args, default_errno: default_errno)
+            safe_integer_callback(fuse_method, *args, default_errno: default_errno, &block)
           end
         end
 
-        private
+        # private
+        # @visibility private
 
         def safe_integer_callback(_, *args, default_errno: Errno::ENOTRECOVERABLE::Errno)
           safe_errno(default_errno) do
@@ -78,20 +79,23 @@ module FFI
             result.is_a?(Integer) && result.negative? ? result : 0
           end
         end
+        private_class_method :safe_integer_callback
 
         def safe_meaningful_integer_callback(_, *args, default_errno: Errno::ENOTRECOVERABLE::Errno)
           safe_errno(default_errno) do
             yield(*args).to_i
           end
         end
+        private_class_method :safe_meaningful_integer_callback
 
         def safe_errno(default_errno)
           yield
         rescue SystemCallError => e
           -e.errno
-        rescue StandardError, ScriptError
+        rescue StandardError, ScriptError => _e
           -default_errno.abs
         end
+        private_class_method :safe_errno
 
         # Process callbacks that return void, simply by swallowing unexpected errors
         def safe_void_callback(_, *args)
@@ -101,6 +105,7 @@ module FFI
           # Swallow unexpected exceptions
           nil
         end
+        private_class_method :safe_void_callback
       end
     end
   end

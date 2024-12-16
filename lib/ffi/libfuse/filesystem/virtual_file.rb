@@ -20,6 +20,7 @@ module FFI
 
           # Create an empty synthetic file
           def initialize(accounting: nil)
+            @nlink = 1
             super
           end
 
