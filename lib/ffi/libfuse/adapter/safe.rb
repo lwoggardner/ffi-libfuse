@@ -92,7 +92,7 @@ module FFI
           yield
         rescue SystemCallError => e
           -e.errno
-        rescue StandardError, ScriptError => _x
+        rescue StandardError, ScriptError => _e
           -default_errno.abs
         end
         private_class_method :safe_errno

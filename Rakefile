@@ -28,7 +28,6 @@ task test: %i[unit_test sample_test]
 require 'bundler/audit/task'
 Bundler::Audit::Task.new
 
-
 require 'yard'
 YARD::Rake::YardocTask.new do |t|
   t.options << '--fail-on-warning'
