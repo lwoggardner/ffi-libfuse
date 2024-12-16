@@ -4,7 +4,7 @@ Ruby FFI Binding for [libfuse](https://github.com/libfuse/libfuse)
 
 ## Requirements
 
-  * Ruby 2.7
+  * Ruby 2.7, 3.2+
   * Linux: libfuse (Fuse2) or libfuse3 (Fuse3)
   * MacOS: macFuse (https://osxfuse.github.io/)
 
