@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require 'bundler/gem_tasks'
+Rake::Task['install'].clear
+Rake::Task['release'].clear
+
 require 'rake/clean'
 
 CLOBBER.include %w[pkg/ doc/]
@@ -23,6 +27,7 @@ task test: %i[unit_test sample_test]
 
 require 'bundler/audit/task'
 Bundler::Audit::Task.new
+
 
 require 'yard'
 YARD::Rake::YardocTask.new do |t|
