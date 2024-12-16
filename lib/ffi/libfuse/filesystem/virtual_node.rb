@@ -75,7 +75,7 @@ module FFI
           end
 
           def listxattr(path, buf = nil, size = nil)
-            return path_method(__method__, path) unless root?(path)
+            return path_method(__method__, path, buf, size) unless root?(path)
             return virtual_xattr.keys unless buf
 
             Adapter::Ruby.listxattr(buf, size) { virtual_xattr.keys }
