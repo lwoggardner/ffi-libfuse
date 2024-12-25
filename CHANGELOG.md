@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/lwoggardner/ffi-libfuse/compare/v0.4.1...v0.4.2) (2024-12-16)
+
+
+### Bug Fixes
+
+* bugs in Adapter::Safe and virtual filesystem operations ([decf7ae](https://github.com/lwoggardner/ffi-libfuse/commit/decf7ae024eee4bb565f67abfe493a14e5fa9cca))
+
 ## [0.4.1](https://github.com/lwoggardner/ffi-libfuse/compare/v0.4.0...v0.4.1) (2024-10-26)
 
 
