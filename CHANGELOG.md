@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/lwoggardner/ffi-libfuse/compare/v0.4.2...v0.4.3) (2024-12-25)
+
+
+### Miscellaneous Chores
+
+* release 0.4.3 ([341e2ce](https://github.com/lwoggardner/ffi-libfuse/commit/341e2ce3a2cf362bf2bdc2433ea0d1e1c843775c))
+
 ## [0.4.2](https://github.com/lwoggardner/ffi-libfuse/compare/v0.4.1...v0.4.2) (2024-12-16)
 
 
