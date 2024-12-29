@@ -59,7 +59,7 @@ module FFI
 
       # @overload fill(str:)
       #   Create a memory buffer from str
-      #   @param [String,#to_s] str
+      #   @param [String] str
       #
       # @overload fill(size:)
       #   Allocate an empty memory buffer of size bytes
@@ -86,11 +86,11 @@ module FFI
       # @return [self]
       def fill(
         str: nil,
-        mem: str ? FFI::MemoryPointer.from_string(str.to_s) : FFI::Pointer::NULL, size: mem.null? ? 0 : mem.size,
+        mem: mem_from_bytes(str),
+        size: mem.null? ? 0 : mem.size,
         fd: -1, fd_retry: false, pos: nil # rubocop:disable Naming/MethodParameterName
-
       )
-        # Allocate size bytes if we've been given a null pointer
+        # Allocate size bytes if we've been given a null pointer and size is > 0
         mem = FFI::MemoryPointer.new(:char, size, true) if fd == -1 && mem.null? && size.positive?
 
         mem.autorelease = to_ptr.autorelease? unless mem.null?
@@ -105,6 +105,15 @@ module FFI
         self[:flags] = flags
         self[:pos] = pos || 0
         self
+      end
+
+      private
+
+      def mem_from_bytes(str)
+        return FFI::Pointer::NULL unless str
+        return FFI::Pointer::NULL if str.empty?
+
+        FFI::MemoryPointer.new(:char, str.bytesize).write_bytes(str)
       end
     end
   end

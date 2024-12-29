@@ -215,7 +215,44 @@ describe "MockFS #{FFI::Libfuse::FUSE_VERSION}" do
         end
       end
     end
+
+    it 'should read via FuseBuf vectors' do
+      mock_fs.paths = { '/testDir' => stat_as_dir }
+      mock_fs.expect_file('/testDir/testFile', size: 12)
+
+      content = "hello\000world\000"
+      # bufp,size,offset,fuse_file_info
+      mock_fs.expect(:read_buf, 0) do |_path, bufp, size, offset, _ffi|
+        expect(offset).must_equal(0)
+        FFI::Libfuse::FuseBufVec.create(content, size, offset).store_to(bufp)
+      end
+      mock_fs.expect(:read_buf, 0) do |_path, bufp, _size, offset, _ffi|
+        expect(offset).must_equal(12)
+        # Default is an empty bufvec
+        FFI::Libfuse::FuseBufVec.init(autorelease: false).store_to(bufp)
+      end
+
+      expect(mock_fs.fuse_respond_to?(:read_buf)).must_equal(true)
+
+      args = []
+      if FFI::Libfuse::FUSE_MAJOR_VERSION >= 3
+        def mock_fs.init(_conn_info, config)
+          config.direct_io = true
+          super
+        end
+      else
+        args.push('-o', 'direct_io')
+      end
+
+      with_fuse(mock_fs, *args) do |mountpoint|
+        File.open("#{mountpoint}/testDir/testFile") do |f|
+          val = f.gets
+          expect(val).must_equal("hello\000world\000")
+        end
+      end
+    end
   end
+
 
   describe 'filesystem statistics' do
     let(:statvfs) do
