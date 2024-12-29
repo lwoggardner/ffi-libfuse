@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/lwoggardner/ffi-libfuse/compare/v0.4.3...v0.4.4) (2024-12-29)
+
+
+### Bug Fixes
+
+* fuse buffer adding NUL character when creating from a String ([#35](https://github.com/lwoggardner/ffi-libfuse/issues/35)) ([e07ebfe](https://github.com/lwoggardner/ffi-libfuse/commit/e07ebfeff4001a7d48ad457604e9f5f9191f96de)), closes [#34](https://github.com/lwoggardner/ffi-libfuse/issues/34)
+
 ## [0.4.3](https://github.com/lwoggardner/ffi-libfuse/compare/v0.4.2...v0.4.3) (2024-12-25)
 
 
